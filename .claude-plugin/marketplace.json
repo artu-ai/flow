@@ -1,0 +1,14 @@
+{
+  "name": "artu-ai",
+  "owner": {
+    "name": "Artu AI",
+    "email": "alex@artu.ai"
+  },
+  "plugins": [
+    {
+      "name": "flow",
+      "source": "./flow",
+      "description": "Allows you to create and manage linear issues and github pr requests according to company best practices."
+    }
+  ]
+}
