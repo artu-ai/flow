@@ -1,12 +1,12 @@
 ---
 description: Checkout a branch for a Linear issue
 argument-hint: [issue-id]
-allowed-tools: mcp__plugin_linear_linear__get_issue, mcp__plugin_linear_linear__update_issue, Bash(git checkout:*), Bash(git push:*)
+allowed-tools: mcp__plugin_linear_linear__get_issue, mcp__plugin_linear_linear__update_issue, Bash(git worktree:*), Bash(git push:*), Bash(git rev-parse:*), Bash(basename:*)
 ---
 
 # Checkout Linear Issue Branch
 
-Create and push a branch for a Linear issue.
+Create a worktree and branch for a Linear issue, enabling parallel development.
 
 ## Arguments
 
@@ -33,40 +33,71 @@ If `$1` is empty or not provided:
 Use `get_issue` with the issue ID to retrieve:
 
 - Issue title
+- Issue identifier (e.g., "ABC-123")
 - Git branch name
 
 If the issue is not found, report the error and stop.
 
-## Step 3: Create and Checkout Branch
+## Step 3: Determine Worktree Path
 
-Execute the following git commands:
+Get the repository root and name:
 
-1. **Checkout new branch** from current branch:
+```bash
+git rev-parse --show-toplevel
+```
+
+```bash
+basename $(git rev-parse --show-toplevel)
+```
+
+The worktree path will be: `<repo-parent>/<repo-name>-<issue-identifier>`
+
+For example, if the repo is at `/Users/alex/Projects/my-app` and the issue is `ABC-123`, the worktree path is `/Users/alex/Projects/my-app-ABC-123`.
+
+## Step 4: Create Worktree and Branch
+
+Check if the worktree already exists:
+
+```bash
+git worktree list
+```
+
+**If the worktree already exists** for this issue:
+
+- Output the existing worktree path and skip to Step 6
+
+**If the worktree does not exist:**
+
+1. **Create worktree with new branch**:
 
    ```bash
-   git checkout -b <branch-name>
+   git worktree add <worktree-path> -b <branch-name>
    ```
 
    Use the git branch name from the issue.
 
-2. **Push and set upstream**:
+2. **Push and set upstream** (from the new worktree):
    ```bash
-   git push -u origin <branch-name>
+   git -C <worktree-path> push -u origin <branch-name>
    ```
 
-## Step 4: Update Issue Status
+## Step 5: Update Issue Status
 
 Use `update_issue` to set the issue status to "In Progress".
 
-## Step 5: Output the Result
+## Step 6: Output the Result
 
 After completing all steps, output:
 
 ```
+Worktree: <worktree-path>
 Branch: <branch-name>
 Issue: <issue-identifier> - <issue-title> (In Progress)
 
-Ready to start coding. Run /flow/commit when done to create draft PR.
+To start working, open a new terminal and run:
+  cd <worktree-path>
+
+Run /flow/commit when done to create draft PR.
 ```
 
 If any step fails, explain the error and what was completed successfully.

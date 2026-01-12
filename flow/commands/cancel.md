@@ -1,16 +1,17 @@
 ---
 description: Cancel work on current issue and close the PR
 argument-hint: [reason]
-allowed-tools: Bash(gh pr view:*), Bash(gh pr comment:*), Bash(gh pr close:*), Bash(git branch:*), Bash(git checkout:*), Bash(git pull:*), mcp__plugin_linear_linear__update_issue
+allowed-tools: Bash(gh pr view:*), Bash(gh pr comment:*), Bash(gh pr close:*), Bash(git branch:*), Bash(git worktree:*), Bash(git pull:*), Bash(git rev-parse:*), mcp__plugin_linear_linear__update_issue
 ---
 
 # Cancel
 
-Cancel work on the current issue, close the PR, and mark the issue as canceled.
+Cancel work on the current issue, close the PR, and mark the issue as canceled. Cleans up the worktree if one was used.
 
 ## Context
 
 - Current branch: !`git branch --show-current`
+- Current directory: !`pwd`
 
 ## Arguments
 
@@ -89,9 +90,52 @@ If an issue ID was found:
 
 - Use `update_issue` to set `state: "Canceled"`
 
-## Step 6: Checkout parent branch and pull
+## Step 6: Check if in a worktree
 
-Checkout the base branch (from Step 2) and pull latest:
+Determine if the current directory is a worktree (not the main working tree):
+
+```bash
+git rev-parse --show-toplevel
+```
+
+```bash
+git worktree list --porcelain
+```
+
+A worktree entry shows `worktree <path>` lines. The main worktree is the first one listed. If the current toplevel matches a non-main worktree path, we're in a worktree.
+
+**If in a worktree:**
+
+1. Save the current worktree path
+2. Find the main worktree path (first entry in `git worktree list`)
+3. Continue to Step 7 with worktree cleanup
+
+**If NOT in a worktree (main working tree):**
+
+- Skip worktree cleanup, just checkout the base branch
+
+## Step 7: Switch to main worktree and cleanup
+
+**If in a worktree:**
+
+Tell the user to switch directories and provide cleanup command:
+
+```
+PR closed: <pr-url>
+Reason: <cancellation-reason>
+Issue: <issue-id> (marked as Canceled)
+
+You're in a worktree. To complete cleanup:
+  1. cd <main-worktree-path>
+  2. git pull
+  3. git worktree remove <current-worktree-path>
+
+Or run /flow/clean to remove all stale worktrees.
+```
+
+**If NOT in a worktree:**
+
+Checkout the base branch and pull latest:
 
 ```bash
 git checkout <baseRefName> && git pull
@@ -99,7 +143,7 @@ git checkout <baseRefName> && git pull
 
 ## Output
 
-After completing:
+**If NOT in a worktree**, after completing:
 
 ```
 PR closed: <pr-url>
@@ -116,3 +160,5 @@ Reason: <cancellation-reason>
 (No Linear issue linked)
 Checked out: <baseRefName> (up to date)
 ```
+
+**If in a worktree**, see Step 7 output above.
