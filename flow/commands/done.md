@@ -1,16 +1,17 @@
 ---
 description: Complete work on current issue after PR is merged
 argument-hint: [issue-id]
-allowed-tools: Bash(gh pr view:*), Bash(git branch:*), Bash(git checkout:*), Bash(git pull:*), mcp__plugin_linear_linear__get_issue, mcp__plugin_linear_linear__update_issue
+allowed-tools: Bash(gh pr view:*), Bash(git branch:*), Bash(git worktree:*), Bash(git pull:*), Bash(git rev-parse:*), Bash(cd:*), mcp__plugin_linear_linear__get_issue, mcp__plugin_linear_linear__update_issue
 ---
 
 # Done
 
-Complete work on the current issue after the PR has been merged.
+Complete work on the current issue after the PR has been merged. Cleans up the worktree if one was used.
 
 ## Context
 
 - Current branch: !`git branch --show-current`
+- Current directory: !`pwd`
 
 ## Arguments
 
@@ -65,9 +66,51 @@ If the issue is already "Done":
 
 - Skip this step
 
-## Step 4: Checkout parent branch and pull
+## Step 4: Check if in a worktree
 
-Checkout the base branch (from Step 1) and pull latest:
+Determine if the current directory is a worktree (not the main working tree):
+
+```bash
+git rev-parse --show-toplevel
+```
+
+```bash
+git worktree list --porcelain
+```
+
+A worktree entry shows `worktree <path>` lines. The main worktree is the first one listed. If the current toplevel matches a non-main worktree path, we're in a worktree.
+
+**If in a worktree:**
+
+1. Save the current worktree path
+2. Find the main worktree path (first entry in `git worktree list`)
+3. Continue to Step 5 with worktree cleanup
+
+**If NOT in a worktree (main working tree):**
+
+- Skip worktree cleanup, just checkout the base branch
+
+## Step 5: Switch to main worktree and cleanup
+
+**If in a worktree:**
+
+Tell the user to switch directories and provide cleanup command:
+
+```
+PR merged: <pr-url>
+Issue: <issue-id> (marked as Done)
+
+You're in a worktree. To complete cleanup:
+  1. cd <main-worktree-path>
+  2. git pull
+  3. git worktree remove <current-worktree-path>
+
+Or run /flow/clean to remove all stale worktrees.
+```
+
+**If NOT in a worktree:**
+
+Checkout the base branch and pull latest:
 
 ```bash
 git checkout <baseRefName> && git pull
@@ -75,7 +118,7 @@ git checkout <baseRefName> && git pull
 
 ## Output
 
-After completing:
+**If NOT in a worktree**, after completing:
 
 ```
 PR merged: <pr-url>
@@ -98,3 +141,5 @@ PR merged: <pr-url>
 (No Linear issue linked)
 Checked out: <baseRefName> (up to date)
 ```
+
+**If in a worktree**, see Step 5 output above.
