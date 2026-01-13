@@ -1,7 +1,7 @@
 ---
 description: Generate a standup summary from your recent Linear activity
 argument-hint: [morning|evening]
-allowed-tools: mcp__plugin_linear_linear__list_issues, mcp__plugin_linear_linear__get_user, Bash(date:*), Bash(TZ=*:*)
+allowed-tools: mcp__plugin_linear_linear__list_issues, mcp__plugin_linear_linear__get_user, Bash(date:*), Bash(TZ=*:*), Bash(printf:*), Bash(pbcopy:*)
 ---
 
 # Daily Standup Summary
@@ -105,15 +105,21 @@ Create a concise standup message in this format:
 - If no activity in a category, omit that section
 - Add a "Next up" suggestion based on in-progress items or recent patterns
 
-## Step 7: Output
+## Step 7: Copy to Clipboard and Output
 
-Present the standup message and ask if the user wants to adjust anything before copying it.
+First, copy the standup message to the clipboard:
+
+```bash
+printf '%s' "<generated-message>" | pbcopy
+```
+
+Then present the standup message to the user:
 
 ```
-Here's your standup summary for the [morning/evening] standup:
+✅ Copied to clipboard!
 
 [Generated message]
 
 ---
-Feel free to copy this message or let me know if you'd like any adjustments.
+Let me know if you'd like any adjustments.
 ```
