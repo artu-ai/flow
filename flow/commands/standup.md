@@ -85,14 +85,14 @@ Create a concise standup message in this format:
 **[Morning/Evening] Standup - [Date]**
 
 ✅ **Completed:**
-- [ISSUE-123] Brief issue title
-- [ISSUE-456] Brief issue title
+- [ISSUE-123](https://linear.app/workspace/issue/ISSUE-123): Brief issue title
+- [ISSUE-456](https://linear.app/workspace/issue/ISSUE-456): Brief issue title
 
 🔄 **In Progress:**
-- [ISSUE-789] Brief issue title - what you're working on
+- [ISSUE-789](https://linear.app/workspace/issue/ISSUE-789): Brief issue title - what you're working on
 
 📝 **Updated:**
-- [ISSUE-012] Brief issue title - what changed
+- [ISSUE-012](https://linear.app/workspace/issue/ISSUE-012): Brief issue title - what changed
 
 **Next up:** [Brief description of what you'll focus on next]
 ```
@@ -101,7 +101,7 @@ Create a concise standup message in this format:
 
 - Keep issue descriptions brief (one line each)
 - Focus on outcomes, not tasks
-- Use the issue identifier as a link reference
+- **Include markdown links to each issue** using the URL from the issue data (or construct from `https://linear.app/{team.key}/issue/{identifier}`)
 - If no activity in a category, omit that section
 - Add a "Next up" suggestion based on in-progress items or recent patterns
 
