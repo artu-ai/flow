@@ -1,7 +1,7 @@
 ---
 description: Complete work on current issue after PR is merged
 argument-hint: [issue-id]
-allowed-tools: Bash(gh pr view:*), Bash(git branch:*), Bash(git worktree:*), Bash(git pull:*), Bash(git rev-parse:*), Bash(cd:*), mcp__plugin_linear_linear__get_issue, mcp__plugin_linear_linear__update_issue
+allowed-tools: Bash(gh pr view:*), Bash(git branch:*), Bash(git worktree:*), Bash(git pull:*), Bash(git rev-parse:*), Bash(cd:*), Bash(ls:*), Bash(ln:*), Bash(for:*), Bash(echo:*), Bash(basename:*), Bash(sed:*), mcp__plugin_linear_linear__get_issue, mcp__plugin_linear_linear__update_issue
 ---
 
 # Done
@@ -84,13 +84,51 @@ A worktree entry shows `worktree <path>` lines. The main worktree is the first o
 
 1. Save the current worktree path
 2. Find the main worktree path (first entry in `git worktree list`)
-3. Continue to Step 5 with worktree cleanup
+3. Continue to Step 5 to preserve Claude conversations, then Step 6 with worktree cleanup
 
 **If NOT in a worktree (main working tree):**
 
-- Skip worktree cleanup, just checkout the base branch
+- Skip worktree cleanup, just checkout the base branch (skip to Step 6)
 
-## Step 5: Switch to main worktree and cleanup
+## Step 5: Preserve Claude conversations (worktree only)
+
+When in a worktree, create symlinks to preserve access to Claude conversations after the worktree is deleted.
+
+1. Convert the worktree path to Claude project directory name (replace `/` with `-`):
+
+```bash
+worktree_claude_dir=$(echo "<current-worktree-path>" | sed 's|/|-|g')
+```
+
+2. Convert the main worktree path to Claude project directory name:
+
+```bash
+main_claude_dir=$(echo "<main-worktree-path>" | sed 's|/|-|g')
+```
+
+3. Check if the worktree Claude projects directory exists:
+
+```bash
+ls ~/.claude/projects/${worktree_claude_dir}/ 2>/dev/null
+```
+
+4. If the directory exists, create symlinks for each conversation:
+
+```bash
+for item in ~/.claude/projects/${worktree_claude_dir}/*; do
+  target=~/.claude/projects/${main_claude_dir}/$(basename "$item")
+  if [ ! -e "$target" ]; then
+    ln -s "$item" "$target"
+    echo "Linked: $(basename "$item")"
+  else
+    echo "Skipping $(basename "$item") - already exists"
+  fi
+done
+```
+
+This ensures conversations from the worktree remain accessible from the main worktree after cleanup.
+
+## Step 6: Switch to main worktree and cleanup
 
 **If in a worktree:**
 
@@ -99,6 +137,7 @@ Tell the user to switch directories and provide cleanup command:
 ```
 PR merged: <pr-url>
 Issue: <issue-id> (marked as Done)
+Claude conversations: linked to main worktree
 
 You're in a worktree. To complete cleanup:
   1. cd <main-worktree-path>
@@ -107,6 +146,8 @@ You're in a worktree. To complete cleanup:
 
 Or run /flow/clean to remove all stale worktrees.
 ```
+
+If no conversations were found to link, omit the "Claude conversations" line.
 
 **If NOT in a worktree:**
 
@@ -142,4 +183,4 @@ PR merged: <pr-url>
 Checked out: <baseRefName> (up to date)
 ```
 
-**If in a worktree**, see Step 5 output above.
+**If in a worktree**, see Step 6 output above.
