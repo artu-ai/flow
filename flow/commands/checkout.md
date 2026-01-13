@@ -1,7 +1,7 @@
 ---
 description: Checkout a branch for a Linear issue
 argument-hint: [issue-id]
-allowed-tools: mcp__plugin_linear_linear__get_issue, mcp__plugin_linear_linear__update_issue, Bash(git worktree:*), Bash(git push:*), Bash(git rev-parse:*), Bash(basename:*)
+allowed-tools: mcp__plugin_linear_linear__get_issue, mcp__plugin_linear_linear__update_issue, Bash(git worktree:*), Bash(git push:*), Bash(git rev-parse:*), Bash(basename:*), Bash(cp:*), Bash(test:*)
 ---
 
 # Checkout Linear Issue Branch
@@ -81,11 +81,21 @@ git worktree list
    git -C <worktree-path> push -u origin <branch-name>
    ```
 
-## Step 5: Update Issue Status
+## Step 5: Copy Environment Files
+
+If a `.env` file exists in the main worktree, copy it to the new worktree:
+
+```bash
+test -f <main-repo-path>/.env && cp <main-repo-path>/.env <worktree-path>/.env
+```
+
+This ensures the new worktree has the same environment configuration.
+
+## Step 6: Update Issue Status
 
 Use `update_issue` to set the issue status to "In Progress".
 
-## Step 6: Output the Result
+## Step 7: Output the Result
 
 After completing all steps, output:
 
