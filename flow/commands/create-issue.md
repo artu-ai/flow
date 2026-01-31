@@ -75,6 +75,12 @@ Note: If a label doesn't exist in the workspace, Linear will create it automatic
 
 ## Step 2: Analyze the Conversation
 
+### Check for Plan Mode Output
+
+If the conversation contains a plan from Claude's plan mode (i.e., you used EnterPlanMode/ExitPlanMode, or wrote a plan to a plan file), use the **entire plan content** as the issue description. Do not summarize or truncate the plan — include it in full as markdown in the description field. Derive the issue title from the plan's goal or heading. The **only** modification you may make to the plan content is applying the description formatting from Step 2.1 (checkboxes, phases, and subphases).
+
+### Otherwise, Extract from Conversation
+
 Review the conversation to extract:
 
 - **Title**: A clear, concise issue title
@@ -99,6 +105,55 @@ If the conversation does NOT contain enough information to create a useful issue
 > Try discussing what you want to accomplish, and then run `/flow/create-issue $1 $2` again.
 
 Do NOT proceed to create an issue if the context is insufficient.
+
+## Step 2.1: Format Description with Phases and Checkboxes
+
+**This applies to ALL issues** — whether derived from a plan or from conversation analysis.
+
+Structure the description using **phases** as bold headers and **tasks as checkboxes** underneath. Group related work into logical phases. Use sub-checkboxes for subphases or smaller steps within a task.
+
+Example format:
+
+```markdown
+Brief context paragraph about the issue.
+
+**Phase 1: Setup and Configuration**
+- [ ] Initialize project scaffolding
+  - [ ] Create directory structure
+  - [ ] Add configuration files
+- [ ] Set up dependencies
+
+**Phase 2: Core Implementation**
+- [ ] Implement the main feature logic
+  - [ ] Add data model
+  - [ ] Add service layer
+- [ ] Write unit tests
+
+**Phase 3: Integration and Cleanup**
+- [ ] Wire up to existing system
+- [ ] Update documentation
+```
+
+After the phases, add a **dependency graph** that shows the execution order and which phases can be parallelized. Use a simple arrow notation:
+
+```markdown
+**Dependency Graph**
+Phase 1 → Phase 2
+Phase 1 → Phase 3
+Phase 2, Phase 3 → Phase 4
+```
+
+- `→` means "must complete before"
+- Phases listed together with commas (e.g., `Phase 2, Phase 3`) means they can run **in parallel**
+- If multiple phases converge into one (e.g., `Phase 2, Phase 3 → Phase 4`), it means Phase 4 is blocked until both are done
+- If all phases are strictly sequential, a single chain is fine: `Phase 1 → Phase 2 → Phase 3`
+
+Guidelines:
+- Each phase should be a logical grouping of related work (e.g., setup, core implementation, testing, cleanup)
+- Use `- [ ]` for top-level tasks, indented `- [ ]` for subtasks
+- Keep phase names short and descriptive with a bolded `**Phase N: Name**` format
+- A brief context paragraph at the top is fine, but the bulk of the description should be the phased checklist
+- For plan mode content: preserve all the detail from the plan — just reorganize it into this phase/checkbox structure
 
 ## Step 3: Create the Issue
 
