@@ -1,4 +1,4 @@
-import { readdir, readFile, writeFile, stat } from 'node:fs/promises';
+import { readdir, readFile, writeFile, stat, mkdir, rename, access, rm } from 'node:fs/promises';
 import { join, resolve, relative } from 'node:path';
 import { execFile as execFileCb } from 'node:child_process';
 import { promisify } from 'node:util';
@@ -94,6 +94,57 @@ export async function readFileContent(root: string, filePath: string): Promise<s
 export async function writeFileContent(root: string, filePath: string, content: string): Promise<void> {
 	const fullPath = validatePath(root, filePath);
 	await writeFile(fullPath, content, 'utf-8');
+}
+
+/**
+ * Create an empty file at the given path.
+ */
+export async function createFile(root: string, filePath: string): Promise<void> {
+	const fullPath = validatePath(root, filePath);
+	try {
+		await access(fullPath);
+		throw new Error('File already exists');
+	} catch (e) {
+		if (e instanceof Error && e.message === 'File already exists') throw e;
+	}
+	await writeFile(fullPath, '', 'utf-8');
+}
+
+/**
+ * Create a directory at the given path.
+ */
+export async function createDirectory(root: string, dirPath: string): Promise<void> {
+	const fullPath = validatePath(root, dirPath);
+	try {
+		await access(fullPath);
+		throw new Error('Directory already exists');
+	} catch (e) {
+		if (e instanceof Error && e.message === 'Directory already exists') throw e;
+	}
+	await mkdir(fullPath, { recursive: true });
+}
+
+/**
+ * Rename a file or directory.
+ */
+export async function renameEntry(root: string, oldPath: string, newPath: string): Promise<void> {
+	const fullOld = validatePath(root, oldPath);
+	const fullNew = validatePath(root, newPath);
+	try {
+		await access(fullNew);
+		throw new Error('Target already exists');
+	} catch (e) {
+		if (e instanceof Error && e.message === 'Target already exists') throw e;
+	}
+	await rename(fullOld, fullNew);
+}
+
+/**
+ * Delete a file or directory.
+ */
+export async function deleteEntry(root: string, entryPath: string): Promise<void> {
+	const fullPath = validatePath(root, entryPath);
+	await rm(fullPath, { recursive: true });
 }
 
 /**

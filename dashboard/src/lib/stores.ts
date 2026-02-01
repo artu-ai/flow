@@ -27,6 +27,13 @@ export const diffBase = writable<DiffBase>('head');
 export const worktrees = writable<Worktree[]>([]);
 export const terminalSessionId = writable<string | null>(null);
 
+export type InlineEditAction =
+	| { type: 'newFile'; parentPath: string }
+	| { type: 'newDir'; parentPath: string }
+	| { type: 'rename'; path: string; currentName: string };
+
+export const inlineEdit = writable<InlineEditAction | null>(null);
+
 /** Maps file paths to their git status for the current worktree. */
 export const gitFileStatuses = writable<Map<string, GitFileStatus>>(new Map());
 
