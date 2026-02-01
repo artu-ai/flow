@@ -8,8 +8,9 @@
 	import { activeView } from '$lib/stores';
 	import FileTreeSidebar from './FileTreeSidebar.svelte';
 	import ChangesSidebar from './ChangesSidebar.svelte';
+	import SidebarResizeHandle from './SidebarResizeHandle.svelte';
 
-	let { ref = $bindable(null), ...restProps }: ComponentProps<typeof Sidebar.Root> = $props();
+	let { ref = $bindable(null), onwidthchange, ...restProps }: ComponentProps<typeof Sidebar.Root> & { onwidthchange?: (width: number) => void } = $props();
 
 	type SidebarTab = 'files' | 'changes';
 	let activeTab: SidebarTab = $state('files');
@@ -61,5 +62,9 @@
 			<ChangesSidebar />
 		</div>
 	</Sidebar.Content>
-	<Sidebar.Rail />
+	{#if onwidthchange}
+		<SidebarResizeHandle onresize={onwidthchange} />
+	{:else}
+		<Sidebar.Rail />
+	{/if}
 </Sidebar.Root>

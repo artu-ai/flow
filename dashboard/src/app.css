@@ -119,3 +119,8 @@
     @apply bg-background text-foreground;
   }
 }
+
+[data-slot="sidebar-wrapper"][data-resizing] [data-slot="sidebar-gap"],
+[data-slot="sidebar-wrapper"][data-resizing] [data-slot="sidebar-container"] {
+  transition: none !important;
+}

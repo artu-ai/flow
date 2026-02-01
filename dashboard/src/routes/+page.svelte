@@ -7,6 +7,7 @@
 	import { currentWorktree, worktrees, terminalSessionId } from '$lib/stores';
 	import Editor from '$lib/components/Editor.svelte';
 	import Terminal from '$lib/components/Terminal.svelte';
+	import PanelResizeHandle from '$lib/components/PanelResizeHandle.svelte';
 
 	function handleWorktreeChange(value: string) {
 		const wt = $worktrees.find((w) => w.path === value);
@@ -17,14 +18,23 @@
 	}
 
 	let terminalOpen = $state(true);
+	let sidebarWidth = $state(256);
+	let terminalWidth = $state(480);
+
+	const MIN_TERMINAL = 200;
+	const MAX_TERMINAL = 800;
+
+	function handleTerminalResize(delta: number) {
+		terminalWidth = Math.min(MAX_TERMINAL, Math.max(MIN_TERMINAL, terminalWidth - delta));
+	}
 </script>
 
 <div class="flex h-full">
 	<!-- Left: sidebar + editor area -->
 	<div class="flex min-w-0 flex-1">
-		<Sidebar.Provider>
-			<EditorSidebar />
-			<Sidebar.Inset>
+		<Sidebar.Provider style="--sidebar-width: {sidebarWidth}px">
+			<EditorSidebar onwidthchange={(w) => sidebarWidth = w} />
+			<Sidebar.Inset class="overflow-hidden">
 				<header class="flex h-12 shrink-0 items-center gap-2 border-b border-border px-4">
 					<Sidebar.Trigger class="-ms-1" />
 					<Separator orientation="vertical" class="me-2 data-[orientation=vertical]:h-4" />
@@ -53,7 +63,8 @@
 
 	<!-- Right: terminal panel (full height, outside sidebar) -->
 	{#if terminalOpen}
-		<div class="flex h-full w-1/3 flex-col border-l-2 border-border/50 pl-1">
+		<PanelResizeHandle onresize={handleTerminalResize} />
+		<div class="flex h-full shrink-0 flex-col overflow-hidden" style="width: {terminalWidth}px">
 			<Terminal />
 		</div>
 	{/if}
