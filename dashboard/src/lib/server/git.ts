@@ -95,12 +95,16 @@ export async function getStatus(worktreePath: string): Promise<GitStatus> {
 }
 
 /**
- * Get diff for a specific file: HEAD version vs working copy.
+ * Get diff for a specific file.
+ * base='head' → HEAD vs working copy (uncommitted changes)
+ * base='main' → main branch vs working copy (branch diff)
  */
-export async function getFileDiff(worktreePath: string, filePath: string): Promise<DiffResult> {
+export async function getFileDiff(worktreePath: string, filePath: string, base: string = 'head'): Promise<DiffResult> {
+	const ref = base === 'main' ? await getMainBranchRef(worktreePath) : 'HEAD';
+
 	let original = '';
 	try {
-		const { stdout } = await execFileAsync('git', ['show', `HEAD:${filePath}`], {
+		const { stdout } = await execFileAsync('git', ['show', `${ref}:${filePath}`], {
 			cwd: worktreePath,
 		});
 		original = stdout;
@@ -118,4 +122,42 @@ export async function getFileDiff(worktreePath: string, filePath: string): Promi
 	}
 
 	return { original, modified, filename: filePath };
+}
+
+/**
+ * Get the ref for the main branch (handles both 'main' and 'master').
+ */
+async function getMainBranchRef(worktreePath: string): Promise<string> {
+	for (const name of ['main', 'master']) {
+		try {
+			await execFileAsync('git', ['rev-parse', '--verify', name], { cwd: worktreePath });
+			return name;
+		} catch {
+			continue;
+		}
+	}
+	return 'main';
+}
+
+export interface BranchDiffFile {
+	path: string;
+	status: string;
+}
+
+/**
+ * List files changed between main branch and HEAD.
+ */
+export async function getBranchDiffFiles(worktreePath: string): Promise<BranchDiffFile[]> {
+	const mainRef = await getMainBranchRef(worktreePath);
+	try {
+		const { stdout } = await execFileAsync('git', ['diff', '--name-status', `${mainRef}...HEAD`], {
+			cwd: worktreePath,
+		});
+		return stdout.trim().split('\n').filter(Boolean).map((line) => {
+			const [status, ...rest] = line.split('\t');
+			return { path: rest.join('\t'), status };
+		});
+	} catch {
+		return [];
+	}
 }

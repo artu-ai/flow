@@ -10,8 +10,10 @@ export const GET: RequestHandler = async ({ url }) => {
 		return json({ error: 'worktree and file parameters required' }, { status: 400 });
 	}
 
+	const base = url.searchParams.get('base') || 'head';
+
 	try {
-		const diff = await getFileDiff(worktree, file);
+		const diff = await getFileDiff(worktree, file, base);
 		return json(diff);
 	} catch (e) {
 		return json({ error: String(e) }, { status: 500 });

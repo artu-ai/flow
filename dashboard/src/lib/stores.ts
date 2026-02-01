@@ -16,8 +16,11 @@ export interface FileEntry {
 	size: number;
 }
 
+export type DiffBase = 'head' | 'main';
+
 export const currentWorktree = writable<Worktree | null>(null);
 export const currentFile = writable<string | null>(null);
 export const activeView = writable<ViewTab>('editor');
+export const diffBase = writable<DiffBase>('head');
 export const worktrees = writable<Worktree[]>([]);
 export const terminalSessionId = writable<string | null>(null);

@@ -12,6 +12,44 @@ claude --plugin-dir ./flow
 
 ## Plugins
 
+### dashboard
+
+Web-based development dashboard for managing git worktrees, editing files, viewing diffs, and running terminal sessions. Built with SvelteKit, Monaco Editor, and xterm.js.
+
+#### Commands
+
+| Command | Description |
+|---------|-------------|
+| `/dashboard/open [port]` | Start the dashboard server on localhost (default: 3420) |
+| `/dashboard/stop` | Stop the dashboard server |
+| `/dashboard/status` | Check server and exposure status |
+| `/dashboard/expose` | Expose dashboard via Tailscale Serve for remote access |
+| `/dashboard/unexpose` | Remove Tailscale exposure |
+
+#### Features
+
+- **File browser** — Sidebar with lazy-loading directory tree, gitignore-aware
+- **Monaco editor** — Syntax highlighting, Cmd+S save, language detection
+- **Diff viewer** — Side-by-side diff for changed files (click from changes tab)
+- **Terminal** — xterm.js terminal with PTY, opens in selected worktree
+- **Worktree tabs** — Switch between worktrees from the navbar
+- **Remote access** — Expose via Tailscale for access from other devices
+
+#### Development
+
+```bash
+cd dashboard
+npm install
+npm run dev   # Start dev server with HMR on port 3420
+```
+
+#### Requirements
+
+- Node.js 24+
+- [Tailscale](https://tailscale.com/) (optional, for remote access via `/dashboard/expose`)
+
+---
+
 ### flow
 
 Linear + GitHub workflow automation for managing issues, branches, commits, and PRs.

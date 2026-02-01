@@ -1,5 +1,5 @@
 <script lang="ts">
-	import { currentWorktree, currentFile } from '$lib/stores';
+	import { currentWorktree, currentFile, diffBase } from '$lib/stores';
 	import { onMount } from 'svelte';
 
 	let container: HTMLDivElement;
@@ -29,11 +29,11 @@
 		});
 	}
 
-	async function showDiff(worktreePath: string, filePath: string) {
+	async function showDiff(worktreePath: string, filePath: string, base: string) {
 		await monacoPromise;
 		if (!monaco || !container) return;
 
-		const params = new URLSearchParams({ worktree: worktreePath, file: filePath });
+		const params = new URLSearchParams({ worktree: worktreePath, file: filePath, base });
 		const res = await fetch(`/api/git/diff?${params}`);
 		const data = await res.json();
 		if (data.error) return;
@@ -66,8 +66,9 @@
 	$effect(() => {
 		const wt = $currentWorktree;
 		const file = $currentFile;
+		const base = $diffBase;
 		if (wt && file) {
-			showDiff(wt.path, file);
+			showDiff(wt.path, file, base);
 		}
 	});
 </script>

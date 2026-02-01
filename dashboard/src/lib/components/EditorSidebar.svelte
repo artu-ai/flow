@@ -9,28 +9,14 @@
 	import { currentWorktree, currentFile, activeView } from '$lib/stores';
 	import type { FileEntry } from '$lib/stores';
 	import LazyDir from './LazyDir.svelte';
+	import ChangesSidebar from './ChangesSidebar.svelte';
 
 	let { ref = $bindable(null), ...restProps }: ComponentProps<typeof Sidebar.Root> = $props();
 
 	type SidebarTab = 'files' | 'changes';
 	let activeTab: SidebarTab = $state('files');
 
-	interface ChangedFile {
-		path: string;
-		status: string;
-		staged: string;
-	}
-
-	let changes: ChangedFile[] = $state([]);
 	let rootEntries: FileEntry[] = $state([]);
-
-	async function loadChanges() {
-		if (!$currentWorktree) return;
-		const params = new URLSearchParams({ worktree: $currentWorktree.path });
-		const res = await fetch(`/api/git/status?${params}`);
-		const data = await res.json();
-		changes = data.files || [];
-	}
 
 	async function loadRootEntries() {
 		if (!$currentWorktree) return;
@@ -44,21 +30,8 @@
 		activeView.set('editor');
 	}
 
-	function selectChange(file: ChangedFile) {
-		currentFile.set(file.path);
-		activeView.set('diff');
-	}
-
-	function statusLabel(file: ChangedFile): string {
-		if (file.staged === '?' || file.status === '?') return 'U';
-		if (file.staged === 'A' || file.status === 'A') return 'A';
-		if (file.staged === 'D' || file.status === 'D') return 'D';
-		return 'M';
-	}
-
 	$effect(() => {
 		if ($currentWorktree) {
-			loadChanges();
 			loadRootEntries();
 		}
 	});
@@ -88,13 +61,9 @@
 						{...props}
 						variant={activeTab === 'changes' ? 'secondary' : 'ghost'}
 						size="icon"
-						class="relative"
 						onclick={() => (activeTab = 'changes')}
 					>
 						<GitBranchIcon />
-						{#if changes.length > 0}
-							<span class="absolute top-0.5 right-0.5 flex h-3.5 min-w-3.5 items-center justify-center rounded-full bg-primary px-0.5 text-[9px] font-medium text-primary-foreground">{changes.length}</span>
-						{/if}
 					</Button>
 				{/snippet}
 			</Tooltip.Trigger>
@@ -124,24 +93,7 @@
 				</Sidebar.GroupContent>
 			</Sidebar.Group>
 		{:else}
-			<Sidebar.Group>
-				<Sidebar.GroupContent>
-					<Sidebar.Menu>
-						{#each changes as file}
-							<Sidebar.MenuItem>
-								<Sidebar.MenuButton class="pe-8" onclick={() => selectChange(file)}>
-									<FileIcon />
-									<span>{file.path}</span>
-								</Sidebar.MenuButton>
-								<Sidebar.MenuBadge>{statusLabel(file)}</Sidebar.MenuBadge>
-							</Sidebar.MenuItem>
-						{/each}
-						{#if changes.length === 0}
-							<div class="px-2 py-4 text-center text-xs text-muted-foreground">No changes</div>
-						{/if}
-					</Sidebar.Menu>
-				</Sidebar.GroupContent>
-			</Sidebar.Group>
+			<ChangesSidebar />
 		{/if}
 	</Sidebar.Content>
 	<Sidebar.Rail />
