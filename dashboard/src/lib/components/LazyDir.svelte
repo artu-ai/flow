@@ -3,7 +3,7 @@
 	import * as Sidebar from '$lib/components/ui/sidebar/index.js';
 	import ChevronRightIcon from '@lucide/svelte/icons/chevron-right';
 	import FolderIcon from '@lucide/svelte/icons/folder';
-	import { currentWorktree, currentFile, activeView } from '$lib/stores';
+	import { currentWorktree, currentFile, activeView, gitFileStatuses, statusColor, folderStatus } from '$lib/stores';
 	import type { FileEntry } from '$lib/stores';
 	import Self from './LazyDir.svelte';
 	import FileTypeIcon from './FileTypeIcon.svelte';
@@ -44,7 +44,7 @@
 	>
 		<Collapsible.Trigger>
 			{#snippet child({ props })}
-				<Sidebar.MenuButton {...props}>
+				<Sidebar.MenuButton {...props} class={statusColor(folderStatus(path, $gitFileStatuses))}>
 					<ChevronRightIcon className="transition-transform" />
 					<FolderIcon />
 					<span>{name}</span>
@@ -63,7 +63,7 @@
 							{@const filePath = childPath(entry.name)}
 							<Sidebar.MenuButton
 								isActive={$currentFile === filePath}
-								class="data-[active=true]:bg-transparent"
+								class="data-[active=true]:font-normal {statusColor($gitFileStatuses.get(filePath) ?? 'none')}"
 								onclick={() => selectFile(entry.name)}
 							>
 								<FileTypeIcon filename={entry.name} />

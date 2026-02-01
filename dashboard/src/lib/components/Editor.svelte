@@ -1,21 +1,26 @@
 <script lang="ts">
-	import { currentWorktree, currentFile } from '$lib/stores';
+	import { currentWorktree, currentFile, activeView, diffBase } from '$lib/stores';
 	import { onMount } from 'svelte';
 	import { Badge } from '$lib/components/ui/badge';
-	import * as Breadcrumb from '$lib/components/ui/breadcrumb/index.js';
+	import FileBreadcrumb from './FileBreadcrumb.svelte';
 
-	let container: HTMLDivElement;
+	let editorContainer: HTMLDivElement;
+	let diffContainer: HTMLDivElement;
 	let editor: any;
+	let diffEditor: any;
 	let monaco: any;
+	let monacoReady: Promise<void>;
 
-	let fileContent: string = $state('');
 	let language: string = $state('plaintext');
 	let saving: boolean = $state(false);
 
 	onMount(() => {
-		initMonaco();
+		monacoReady = initMonaco();
 		return () => {
 			editor?.dispose();
+			diffEditor?.getModel()?.original?.dispose();
+			diffEditor?.getModel()?.modified?.dispose();
+			diffEditor?.dispose();
 		};
 	});
 
@@ -31,7 +36,7 @@
 			},
 		});
 
-		editor = monaco.editor.create(container, {
+		editor = monaco.editor.create(editorContainer, {
 			value: '',
 			language: 'plaintext',
 			theme: 'dashboard-dark',
@@ -49,12 +54,12 @@
 	}
 
 	async function loadFile(worktreePath: string, filePath: string) {
+		await monacoReady;
 		const params = new URLSearchParams({ root: worktreePath, path: filePath });
 		const res = await fetch(`/api/files?${params}`);
 		const data = await res.json();
 		if (data.error) return;
 
-		fileContent = data.content;
 		language = data.language;
 
 		if (editor && monaco) {
@@ -64,6 +69,39 @@
 				monaco.editor.setModelLanguage(model, data.language);
 			}
 		}
+	}
+
+	async function loadDiff(worktreePath: string, filePath: string, base: string) {
+		await monacoReady;
+		if (!monaco || !diffContainer) return;
+
+		const params = new URLSearchParams({ worktree: worktreePath, file: filePath, base });
+		const res = await fetch(`/api/git/diff?${params}`);
+		const data = await res.json();
+		if (data.error) return;
+
+		if (diffEditor) {
+			const model = diffEditor.getModel();
+			model?.original?.dispose();
+			model?.modified?.dispose();
+			diffEditor.dispose();
+			diffEditor = null;
+		}
+
+		const originalModel = monaco.editor.createModel(data.original ?? '', undefined, monaco.Uri.parse(`original/${filePath}`));
+		const modifiedModel = monaco.editor.createModel(data.modified ?? '', undefined, monaco.Uri.parse(`modified/${filePath}`));
+
+		diffEditor = monaco.editor.createDiffEditor(diffContainer, {
+			theme: 'dashboard-dark',
+			automaticLayout: true,
+			readOnly: true,
+			minimap: { enabled: false },
+			fontSize: 13,
+			scrollBeyondLastLine: false,
+			renderSideBySide: true,
+		});
+
+		diffEditor.setModel({ original: originalModel, modified: modifiedModel });
 	}
 
 	async function saveFile() {
@@ -82,42 +120,40 @@
 	$effect(() => {
 		const wt = $currentWorktree;
 		const file = $currentFile;
-		if (wt && file) {
+		if (wt && file && $activeView === 'editor') {
 			loadFile(wt.path, file);
+		}
+	});
+
+	$effect(() => {
+		const wt = $currentWorktree;
+		const file = $currentFile;
+		const base = $diffBase;
+		if (wt && file && $activeView === 'diff') {
+			loadDiff(wt.path, file, base);
 		}
 	});
 </script>
 
 <div class="flex h-full flex-col">
 	{#if $currentFile}
-		<div class="flex items-center justify-between border-b border-border px-3 py-1.5 text-xs">
-			<Breadcrumb.Root>
-				<Breadcrumb.List class="text-xs sm:gap-1">
-					{#each $currentFile.split('/') as part, i}
-						{#if i > 0}
-							<Breadcrumb.Separator />
-						{/if}
-						<Breadcrumb.Item>
-							{#if i === $currentFile.split('/').length - 1}
-								<Breadcrumb.Page>{part}</Breadcrumb.Page>
-							{:else}
-								<Breadcrumb.Link href="##">{part}</Breadcrumb.Link>
-							{/if}
-						</Breadcrumb.Item>
-					{/each}
-				</Breadcrumb.List>
-			</Breadcrumb.Root>
-			{#if saving}
+		<FileBreadcrumb filePath={$currentFile}>
+			{#if $activeView === 'diff'}
+				<Badge variant="outline" class="text-[10px]">
+					{$diffBase === 'main' ? 'vs main' : 'vs HEAD'}
+				</Badge>
+			{:else if saving}
 				<Badge variant="outline" class="text-[10px]">Saving...</Badge>
 			{:else}
 				<span class="text-muted-foreground/60">{language}</span>
 			{/if}
-		</div>
+		</FileBreadcrumb>
 	{/if}
 	{#if !$currentFile}
 		<div class="flex flex-1 items-center justify-center text-muted-foreground text-sm">
 			Select a file to edit
 		</div>
 	{/if}
-	<div class="flex-1" class:hidden={!$currentFile} bind:this={container}></div>
+	<div class="flex-1" class:hidden={!$currentFile || $activeView !== 'editor'} bind:this={editorContainer}></div>
+	<div class="flex-1" class:hidden={!$currentFile || $activeView !== 'diff'} bind:this={diffContainer}></div>
 </div>

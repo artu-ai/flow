@@ -5,6 +5,7 @@
 	import FolderTreeIcon from '@lucide/svelte/icons/folder-tree';
 	import GitBranchIcon from '@lucide/svelte/icons/git-branch';
 	import type { ComponentProps } from 'svelte';
+	import { activeView } from '$lib/stores';
 	import FileTreeSidebar from './FileTreeSidebar.svelte';
 	import ChangesSidebar from './ChangesSidebar.svelte';
 
@@ -12,10 +13,15 @@
 
 	type SidebarTab = 'files' | 'changes';
 	let activeTab: SidebarTab = $state('files');
+
+	function switchTab(tab: SidebarTab) {
+		activeTab = tab;
+		activeView.set(tab === 'files' ? 'editor' : 'diff');
+	}
 </script>
 
 <Sidebar.Root bind:ref {...restProps}>
-	<Sidebar.Header class="flex-row items-center justify-center gap-1 border-b border-border px-1 py-1">
+	<Sidebar.Header class="h-12 flex-row items-center justify-center gap-1 border-b border-border px-1">
 		<Tooltip.Root>
 			<Tooltip.Trigger>
 				{#snippet child({ props })}
@@ -23,7 +29,7 @@
 						{...props}
 						variant={activeTab === 'files' ? 'secondary' : 'ghost'}
 						size="icon"
-						onclick={() => (activeTab = 'files')}
+						onclick={() => switchTab('files')}
 					>
 						<FolderTreeIcon />
 					</Button>
@@ -38,7 +44,7 @@
 						{...props}
 						variant={activeTab === 'changes' ? 'secondary' : 'ghost'}
 						size="icon"
-						onclick={() => (activeTab = 'changes')}
+						onclick={() => switchTab('changes')}
 					>
 						<GitBranchIcon />
 					</Button>
@@ -48,11 +54,12 @@
 		</Tooltip.Root>
 	</Sidebar.Header>
 	<Sidebar.Content>
-		{#if activeTab === 'files'}
+		<div class:hidden={activeTab !== 'files'}>
 			<FileTreeSidebar />
-		{:else}
+		</div>
+		<div class:hidden={activeTab !== 'changes'}>
 			<ChangesSidebar />
-		{/if}
+		</div>
 	</Sidebar.Content>
 	<Sidebar.Rail />
 </Sidebar.Root>

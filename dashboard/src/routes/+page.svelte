@@ -4,10 +4,9 @@
 	import * as Sidebar from '$lib/components/ui/sidebar/index.js';
 	import * as Tabs from '$lib/components/ui/tabs';
 	import { Badge } from '$lib/components/ui/badge';
-	import { activeView, currentWorktree, worktrees, terminalSessionId } from '$lib/stores';
+	import { currentWorktree, worktrees, terminalSessionId } from '$lib/stores';
 	import Editor from '$lib/components/Editor.svelte';
 	import Terminal from '$lib/components/Terminal.svelte';
-	import DiffViewer from '$lib/components/DiffViewer.svelte';
 
 	function handleWorktreeChange(value: string) {
 		const wt = $worktrees.find((w) => w.path === value);
@@ -46,11 +45,7 @@
 					{/if}
 				</header>
 				<div class="flex-1 overflow-hidden">
-					{#if $activeView === 'diff'}
-						<DiffViewer />
-					{:else}
-						<Editor />
-					{/if}
+					<Editor />
 				</div>
 			</Sidebar.Inset>
 		</Sidebar.Provider>
