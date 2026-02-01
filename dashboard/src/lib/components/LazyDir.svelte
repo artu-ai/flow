@@ -2,11 +2,11 @@
 	import * as Collapsible from '$lib/components/ui/collapsible/index.js';
 	import * as Sidebar from '$lib/components/ui/sidebar/index.js';
 	import ChevronRightIcon from '@lucide/svelte/icons/chevron-right';
-	import FileIcon from '@lucide/svelte/icons/file';
 	import FolderIcon from '@lucide/svelte/icons/folder';
 	import { currentWorktree, currentFile, activeView } from '$lib/stores';
 	import type { FileEntry } from '$lib/stores';
 	import Self from './LazyDir.svelte';
+	import FileTypeIcon from './FileTypeIcon.svelte';
 
 	let { name, path, root }: { name: string; path: string; root: string } = $props();
 
@@ -66,7 +66,7 @@
 								class="data-[active=true]:bg-transparent"
 								onclick={() => selectFile(entry.name)}
 							>
-								<FileIcon />
+								<FileTypeIcon filename={entry.name} />
 								<span>{entry.name}</span>
 							</Sidebar.MenuButton>
 						{/if}

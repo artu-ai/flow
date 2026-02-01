@@ -2,8 +2,8 @@
 	import * as Sidebar from '$lib/components/ui/sidebar/index.js';
 	import * as Tabs from '$lib/components/ui/tabs';
 	import { Button } from '$lib/components/ui/button/index.js';
-	import FileIcon from '@lucide/svelte/icons/file';
 	import RefreshCwIcon from '@lucide/svelte/icons/refresh-cw';
+	import FileTypeIcon from './FileTypeIcon.svelte';
 	import { currentWorktree, currentFile, activeView, diffBase } from '$lib/stores';
 	import { onMount } from 'svelte';
 
@@ -121,7 +121,7 @@
 					{#each stagedFiles as file}
 						<Sidebar.MenuItem>
 							<Sidebar.MenuButton class="pe-8" onclick={() => selectWorkingFile(file)}>
-								<FileIcon />
+								<FileTypeIcon filename={file.path.split('/').pop() ?? file.path} />
 								<span>{file.path}</span>
 							</Sidebar.MenuButton>
 							<Sidebar.MenuBadge>{workingStatusLabel(file)}</Sidebar.MenuBadge>
@@ -135,7 +135,7 @@
 					{#each unstagedFiles as file}
 						<Sidebar.MenuItem>
 							<Sidebar.MenuButton class="pe-8" onclick={() => selectWorkingFile(file)}>
-								<FileIcon />
+								<FileTypeIcon filename={file.path.split('/').pop() ?? file.path} />
 								<span>{file.path}</span>
 							</Sidebar.MenuButton>
 							<Sidebar.MenuBadge>{workingStatusLabel(file)}</Sidebar.MenuBadge>
@@ -155,7 +155,7 @@
 				{#each branchFiles as file}
 					<Sidebar.MenuItem>
 						<Sidebar.MenuButton class="pe-8" onclick={() => selectBranchFile(file)}>
-							<FileIcon />
+							<FileTypeIcon filename={file.path.split('/').pop() ?? file.path} />
 							<span>{file.path}</span>
 						</Sidebar.MenuButton>
 						<Sidebar.MenuBadge>{branchStatusLabel(file.status)}</Sidebar.MenuBadge>

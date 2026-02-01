@@ -2,39 +2,16 @@
 	import * as Sidebar from '$lib/components/ui/sidebar/index.js';
 	import * as Tooltip from '$lib/components/ui/tooltip/index.js';
 	import { Button } from '$lib/components/ui/button/index.js';
-	import FileIcon from '@lucide/svelte/icons/file';
 	import FolderTreeIcon from '@lucide/svelte/icons/folder-tree';
 	import GitBranchIcon from '@lucide/svelte/icons/git-branch';
 	import type { ComponentProps } from 'svelte';
-	import { currentWorktree, currentFile, activeView } from '$lib/stores';
-	import type { FileEntry } from '$lib/stores';
-	import LazyDir from './LazyDir.svelte';
+	import FileTreeSidebar from './FileTreeSidebar.svelte';
 	import ChangesSidebar from './ChangesSidebar.svelte';
 
 	let { ref = $bindable(null), ...restProps }: ComponentProps<typeof Sidebar.Root> = $props();
 
 	type SidebarTab = 'files' | 'changes';
 	let activeTab: SidebarTab = $state('files');
-
-	let rootEntries: FileEntry[] = $state([]);
-
-	async function loadRootEntries() {
-		if (!$currentWorktree) return;
-		const params = new URLSearchParams({ root: $currentWorktree.path, dir: '.' });
-		const res = await fetch(`/api/files?${params}`);
-		rootEntries = await res.json();
-	}
-
-	function selectFile(name: string) {
-		currentFile.set(name);
-		activeView.set('editor');
-	}
-
-	$effect(() => {
-		if ($currentWorktree) {
-			loadRootEntries();
-		}
-	});
 </script>
 
 <Sidebar.Root bind:ref {...restProps}>
@@ -72,26 +49,7 @@
 	</Sidebar.Header>
 	<Sidebar.Content>
 		{#if activeTab === 'files'}
-			<Sidebar.Group>
-				<Sidebar.GroupContent>
-					<Sidebar.Menu>
-						{#each rootEntries as entry}
-							{#if entry.type === 'directory'}
-								<LazyDir name={entry.name} path={entry.name} root={$currentWorktree?.path ?? ''} />
-							{:else}
-								<Sidebar.MenuButton
-									isActive={$currentFile === entry.name}
-									class="data-[active=true]:bg-transparent"
-									onclick={() => selectFile(entry.name)}
-								>
-									<FileIcon />
-									<span>{entry.name}</span>
-								</Sidebar.MenuButton>
-							{/if}
-						{/each}
-					</Sidebar.Menu>
-				</Sidebar.GroupContent>
-			</Sidebar.Group>
+			<FileTreeSidebar />
 		{:else}
 			<ChangesSidebar />
 		{/if}
