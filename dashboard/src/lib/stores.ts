@@ -75,6 +75,13 @@ export const worktreeOrder = persistedWritable<string[]>('dashboard:worktreeOrde
 export const previousWorktreePath = writable<string | null>(null);
 export const showGitIgnored = persistedWritable<boolean>('dashboard:showGitIgnored', false);
 
+export interface FormatterConfig {
+	biome: boolean;
+}
+export const formatterConfig = localPersistedWritable<FormatterConfig>('dashboard:formatterConfig', {
+	biome: true,
+});
+
 export interface LinterConfig {
 	biome: boolean;
 	eslint: boolean;

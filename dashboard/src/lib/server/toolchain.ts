@@ -5,20 +5,6 @@ import { promisify } from 'node:util';
 
 export const execFile = promisify(execFileCb);
 
-export const BIOME_EXTENSIONS = new Set([
-	'.js',
-	'.ts',
-	'.jsx',
-	'.tsx',
-	'.json',
-	'.jsonc',
-	'.css',
-	'.graphql',
-	'.gql',
-]);
-
-export const ESLINT_EXTENSIONS = new Set(['.js', '.ts', '.jsx', '.tsx', '.svelte', '.vue']);
-
 export async function fileExists(path: string): Promise<boolean> {
 	try {
 		await access(path);
@@ -62,6 +48,43 @@ export async function findBiomeBin(root: string, filePath: string): Promise<stri
 		if (await fileExists(local)) return local;
 	}
 
+	// Fall back to biome on PATH (global install or parent project)
+	try {
+		const { stdout } = await execFile('which', ['biome']);
+		const bin = stdout.trim();
+		if (bin) return bin;
+	} catch {
+		// not on PATH
+	}
+
+	return null;
+}
+
+export async function findEslintBin(root: string, filePath: string): Promise<string | null> {
+	const configDir = await findConfigDir(root, filePath, [
+		'eslint.config.js',
+		'eslint.config.mjs',
+		'eslint.config.cjs',
+		'.eslintrc.json',
+		'.eslintrc.js',
+		'.eslintrc.yml',
+	]);
+	const searchDirs = configDir ? [configDir, root] : [root];
+
+	for (const dir of searchDirs) {
+		const local = join(dir, 'node_modules', '.bin', 'eslint');
+		if (await fileExists(local)) return local;
+	}
+
+	// Fall back to eslint on PATH
+	try {
+		const { stdout } = await execFile('which', ['eslint']);
+		const bin = stdout.trim();
+		if (bin) return bin;
+	} catch {
+		// not on PATH
+	}
+
 	return null;
 }
 
@@ -87,4 +110,28 @@ export async function hasRuff(): Promise<boolean> {
 	} catch {
 		return false;
 	}
+}
+
+export async function findRuffBin(root: string, filePath: string): Promise<string | null> {
+	const configDir = await findConfigDir(root, filePath, [
+		'pyproject.toml',
+		'ruff.toml',
+		'.ruff.toml',
+	]);
+	const searchDirs = configDir ? [configDir, root] : [root];
+
+	for (const dir of searchDirs) {
+		const local = join(dir, 'node_modules', '.bin', 'ruff');
+		if (await fileExists(local)) return local;
+	}
+
+	try {
+		const { stdout } = await execFile('which', ['ruff']);
+		const bin = stdout.trim();
+		if (bin) return bin;
+	} catch {
+		// not on PATH
+	}
+
+	return null;
 }

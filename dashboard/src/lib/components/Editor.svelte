@@ -1,5 +1,5 @@
 <script lang="ts">
-	import { currentFile, activeView, diffBase, hasUnsavedChanges, focusedPanel, completionConfig, linterConfig } from '$lib/stores';
+	import { currentFile, activeView, diffBase, hasUnsavedChanges, focusedPanel, completionConfig, linterConfig, formatterConfig } from '$lib/stores';
 	import type { CompletionConfig } from '$lib/stores';
 	import { get } from 'svelte/store';
 	import { onMount } from 'svelte';
@@ -219,7 +219,7 @@
 			const fmtRes = await fetch('/api/format', {
 				method: 'POST',
 				headers: { 'Content-Type': 'application/json' },
-				body: JSON.stringify({ root: worktreePath, path: filePath, content }),
+				body: JSON.stringify({ root: worktreePath, path: filePath, content, enabledFormatters: get(formatterConfig) }),
 			});
 			const fmtData = await fmtRes.json();
 			if (fmtData.formatted && fmtData.content != null && fmtData.content !== content) {

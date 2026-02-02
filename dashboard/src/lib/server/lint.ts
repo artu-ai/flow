@@ -3,6 +3,8 @@ import { resolve, extname } from 'node:path';
 import {
 	execFile,
 	findBiomeBin,
+	findEslintBin,
+	findRuffBin,
 	hasBiomeConfig,
 	hasEslintConfig,
 	hasRuff,
@@ -204,9 +206,10 @@ async function runBiome(
 const eslintSkipExtensions = new Map<string, Set<string>>();
 
 async function runEslint(
+	root: string,
+	filePath: string,
 	fullPath: string,
 	configDir: string | null,
-	root: string,
 ): Promise<LintDiagnostic[]> {
 	const cwd = configDir ?? root;
 	const ext = extname(fullPath).toLowerCase();
@@ -214,11 +217,14 @@ async function runEslint(
 	const skipped = eslintSkipExtensions.get(cwd);
 	if (skipped?.has(ext)) return [];
 
+	const bin = await findEslintBin(root, filePath);
+	if (!bin) return [];
+
 	let stdout = '';
 	try {
 		const result = await execFile(
-			'npx',
-			['eslint', '--no-warn-ignored', '--format=json', fullPath],
+			bin,
+			['--no-warn-ignored', '--format=json', fullPath],
 			{ cwd },
 		);
 		stdout = result.stdout;
@@ -237,10 +243,17 @@ async function runEslint(
 	return result;
 }
 
-async function runRuff(fullPath: string): Promise<LintDiagnostic[]> {
+async function runRuff(
+	root: string,
+	filePath: string,
+	fullPath: string,
+): Promise<LintDiagnostic[]> {
+	const bin = await findRuffBin(root, filePath);
+	if (!bin) return [];
+
 	let stdout = '';
 	try {
-		const result = await execFile('ruff', [
+		const result = await execFile(bin, [
 			'check',
 			'--output-format=json',
 			fullPath,
@@ -269,8 +282,8 @@ export async function lintFile(
 		linters.map(({ linter, configDir }) => {
 			try {
 				if (linter === 'biome') return runBiome(root, filePath, fullPath, configDir);
-				if (linter === 'eslint') return runEslint(fullPath, configDir, root);
-				if (linter === 'ruff') return runRuff(fullPath);
+				if (linter === 'eslint') return runEslint(root, filePath, fullPath, configDir);
+				if (linter === 'ruff') return runRuff(root, filePath, fullPath);
 			} catch {
 				// Binary not found or other execution failure
 			}

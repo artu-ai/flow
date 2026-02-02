@@ -8,7 +8,7 @@
 	import * as Tooltip from '$lib/components/ui/tooltip/index.js';
 	import { Button } from '$lib/components/ui/button';
 	import { Kbd } from '$lib/components/ui/kbd';
-	import { currentWorktree, worktrees, terminalSessions, activeTerminalSession, sidebarWidth, terminalWidth, terminalHeight, terminalLayout, hasUnsavedChanges, worktreeOrder, previousWorktreePath, focusedPanel, showGitIgnored, linearApiKey, completionConfig, linterConfig, currentFile, gitFileStatuses } from '$lib/stores';
+	import { currentWorktree, worktrees, terminalSessions, activeTerminalSession, sidebarWidth, terminalWidth, terminalHeight, terminalLayout, hasUnsavedChanges, worktreeOrder, previousWorktreePath, focusedPanel, showGitIgnored, linearApiKey, completionConfig, linterConfig, formatterConfig, currentFile, gitFileStatuses } from '$lib/stores';
 	import type { Worktree } from '$lib/stores';
 	import Editor from '$lib/components/Editor.svelte';
 	import Terminal from '$lib/components/Terminal.svelte';
@@ -454,6 +454,17 @@
 										<span class="ml-auto text-xs text-muted-foreground">&#10003;</span>
 									{/if}
 								</DropdownMenu.Item>
+								<DropdownMenu.Sub>
+									<DropdownMenu.SubTrigger>Formatters</DropdownMenu.SubTrigger>
+									<DropdownMenu.SubContent>
+										<DropdownMenu.Item onclick={() => formatterConfig.update((c) => ({ ...c, biome: !c.biome }))}>
+											Biome
+											{#if $formatterConfig.biome}
+												<span class="ml-auto text-xs text-muted-foreground">&#10003;</span>
+											{/if}
+										</DropdownMenu.Item>
+									</DropdownMenu.SubContent>
+								</DropdownMenu.Sub>
 								<DropdownMenu.Sub>
 									<DropdownMenu.SubTrigger>Linters</DropdownMenu.SubTrigger>
 									<DropdownMenu.SubContent>
