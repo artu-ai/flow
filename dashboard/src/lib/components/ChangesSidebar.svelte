@@ -5,6 +5,7 @@
 	import * as Dialog from '$lib/components/ui/dialog/index.js';
 	import * as AlertDialog from '$lib/components/ui/alert-dialog/index.js';
 	import * as Command from '$lib/components/ui/command/index.js';
+	import * as ScrollArea from '$lib/components/ui/scroll-area';
 	import { Textarea } from '$lib/components/ui/textarea/index.js';
 	import { Button } from '$lib/components/ui/button/index.js';
 	import RefreshCwIcon from '@lucide/svelte/icons/refresh-cw';
@@ -13,6 +14,8 @@
 	import MinusIcon from '@lucide/svelte/icons/minus';
 	import Undo2Icon from '@lucide/svelte/icons/undo-2';
 	import LoaderIcon from '@lucide/svelte/icons/loader';
+	import LoaderCircleIcon from '@lucide/svelte/icons/loader-circle';
+	import GitBranchIcon from '@lucide/svelte/icons/git-branch';
 	import FileTypeIcon from './FileTypeIcon.svelte';
 	import { currentWorktree, currentFile, activeView, diffBase, statusColor, worktrees } from '$lib/stores';
 	import type { GitFileStatus } from '$lib/stores';
@@ -512,16 +515,17 @@
 
 <!-- Branch Dialog (Merge / Checkout) -->
 <Dialog.Root bind:open={branchDialogOpen}>
-	<Dialog.Content class="sm:max-w-md">
-		<Dialog.Header>
+	<Dialog.Content class="overflow-hidden p-0 sm:max-w-lg" showCloseButton={false}>
+		<Dialog.Header class="sr-only">
 			<Dialog.Title>{branchDialogMode === 'merge' ? 'Merge Branch' : 'Checkout Branch'}</Dialog.Title>
 			<Dialog.Description>
 				{branchDialogMode === 'merge' ? 'Select a branch to merge into the current branch.' : 'Select a branch to check out.'}
 			</Dialog.Description>
 		</Dialog.Header>
-		<Command.Root class="rounded-lg border" shouldFilter={true}>
+		<Command.Root class="**:data-[slot=command-input-wrapper]:h-12 **:data-command-group:px-2 [&_[data-command-group]:not([hidden])_~[data-command-group]]:pt-0 [&_[data-command-input-wrapper]_svg]:h-5 [&_[data-command-input-wrapper]_svg]:w-5 **:data-command-input:h-12 **:data-command-item:px-2 **:data-command-item:py-3 [&_[data-command-item]_svg]:h-5 [&_[data-command-item]_svg]:w-5" shouldFilter={true}>
 			<Command.Input placeholder="Search branches..." bind:value={branchSearch} />
-			<Command.List class="max-h-60">
+			<ScrollArea.Root class="max-h-[300px]">
+			<Command.List class="max-h-none overflow-visible">
 				<Command.Empty>
 					{branchLoading ? 'Loading branches...' : 'No branches found.'}
 				</Command.Empty>
@@ -533,7 +537,8 @@
 								onSelect={() => selectBranch(branch.name)}
 								disabled={branch.current}
 							>
-								<span class="truncate">{branch.name}</span>
+								<GitBranchIcon class="h-3.5 w-3.5 text-muted-foreground" />
+								{branch.name}
 								{#if branch.current}
 									<span class="ml-auto text-xs text-muted-foreground">current</span>
 								{/if}
@@ -548,18 +553,21 @@
 								value={branch.name}
 								onSelect={() => selectBranch(branch.name)}
 							>
-								<span class="truncate">{branch.name}</span>
+								<GitBranchIcon class="h-3.5 w-3.5 text-muted-foreground" />
+								{branch.name}
 							</Command.Item>
 						{/each}
 					</Command.Group>
 				{/if}
 			</Command.List>
+			</ScrollArea.Root>
+			{#if branchLoading}
+				<div class="flex items-center justify-center border-t py-3">
+					<LoaderCircleIcon class="h-4 w-4 animate-spin text-muted-foreground" />
+					<span class="ml-2 text-sm text-muted-foreground">Loading branches...</span>
+				</div>
+			{/if}
 		</Command.Root>
-		{#if branchLoading}
-			<div class="flex items-center justify-center py-2">
-				<LoaderIcon class="size-4 animate-spin text-muted-foreground" />
-			</div>
-		{/if}
 	</Dialog.Content>
 </Dialog.Root>
 
