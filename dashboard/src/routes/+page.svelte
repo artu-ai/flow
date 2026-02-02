@@ -3,11 +3,12 @@
 	import { Separator } from '$lib/components/ui/separator/index.js';
 	import * as Sidebar from '$lib/components/ui/sidebar/index.js';
 	import * as Tabs from '$lib/components/ui/tabs';
-	import * as Sheet from '$lib/components/ui/sheet';
+	import * as Dialog from '$lib/components/ui/dialog';
 	import * as AlertDialog from '$lib/components/ui/alert-dialog';
 	import * as DropdownMenu from '$lib/components/ui/dropdown-menu';
 	import { Button } from '$lib/components/ui/button';
 	import { Input } from '$lib/components/ui/input';
+	import { Kbd } from '$lib/components/ui/kbd';
 	import { currentWorktree, worktrees, terminalSessions, activeTerminalSession, sidebarWidth, terminalWidth, terminalHeight, terminalLayout, hasUnsavedChanges, worktreeOrder, previousWorktreePath } from '$lib/stores';
 	import type { Worktree } from '$lib/stores';
 	import Editor from '$lib/components/Editor.svelte';
@@ -156,7 +157,7 @@
 	}
 
 	let terminalOpen = $state(true);
-	let sheetOpen = $state(false);
+	let createDialogOpen = $state(false);
 	let branchName = $state('');
 	let creating = $state(false);
 	let createError = $state('');
@@ -204,7 +205,7 @@
 			}
 			// Reset and close
 			branchName = '';
-			sheetOpen = false;
+			createDialogOpen = false;
 		} catch (e) {
 			createError = e instanceof Error ? e.message : 'An unexpected error occurred';
 		} finally {
@@ -282,52 +283,63 @@
 
 					{#if orderedWorktrees.length > 0}
 						<Tabs.Root value={$currentWorktree?.path ?? ''} onValueChange={handleWorktreeChange}>
-							<Tabs.List>
-								{#each orderedWorktrees as wt, i}
-									<Tabs.Trigger
-										value={wt.path}
-										class="group gap-1.5 pr-1.5 {dropIndex === i && dragIndex !== null && dragIndex < i ? 'border-r-2 border-r-primary' : ''} {dropIndex === i && dragIndex !== null && dragIndex > i ? 'border-l-2 border-l-primary' : ''}"
-										draggable={true}
-										ondragstart={(e: DragEvent) => handleDragStart(e, i)}
-										ondragover={(e: DragEvent) => handleDragOver(e, i)}
-										ondrop={(e: DragEvent) => handleDrop(e, i)}
-										ondragend={handleDragEnd}
-									>
-										{wt.branch}
-										{#if !wt.isMain}
-											<button
-												class="ml-0.5 rounded-sm opacity-60 hover:opacity-100 hover:bg-muted-foreground/20"
-												onclick={(e) => promptDeleteWorktree(e, wt)}
-												disabled={deletingPath === wt.path}
-											>
-												{#if deletingPath === wt.path}
-													<LoaderCircleIcon class="h-3 w-3 animate-spin" />
-												{:else}
-													<XIcon class="h-3 w-3" />
-												{/if}
-											</button>
-										{/if}
-									</Tabs.Trigger>
-								{/each}
-							</Tabs.List>
+							<div class="flex items-center">
+								{#if orderedWorktrees.length > 1}
+									<Kbd class="mr-1 hidden sm:inline-flex h-4 min-w-4 text-[10px] opacity-50" title="Ctrl+[ — previous worktree">⌃[</Kbd>
+								{/if}
+								<Tabs.List>
+									{#each orderedWorktrees as wt, i}
+										<Tabs.Trigger
+											value={wt.path}
+											class="group gap-1.5 pr-1.5 {dropIndex === i && dragIndex !== null && dragIndex < i ? 'border-r-2 border-r-primary' : ''} {dropIndex === i && dragIndex !== null && dragIndex > i ? 'border-l-2 border-l-primary' : ''}"
+											draggable={true}
+											ondragstart={(e: DragEvent) => handleDragStart(e, i)}
+											ondragover={(e: DragEvent) => handleDragOver(e, i)}
+											ondrop={(e: DragEvent) => handleDrop(e, i)}
+											ondragend={handleDragEnd}
+										>
+											{wt.branch}
+											{#if i < 9}
+												<Kbd class="ml-1 h-4 min-w-4 text-[10px] opacity-40">⌃{i + 1}</Kbd>
+											{/if}
+											{#if !wt.isMain}
+												<button
+													class="ml-0.5 rounded-sm opacity-60 hover:opacity-100 hover:bg-muted-foreground/20"
+													onclick={(e) => promptDeleteWorktree(e, wt)}
+													disabled={deletingPath === wt.path}
+												>
+													{#if deletingPath === wt.path}
+														<LoaderCircleIcon class="h-3 w-3 animate-spin" />
+													{:else}
+														<XIcon class="h-3 w-3" />
+													{/if}
+												</button>
+											{/if}
+										</Tabs.Trigger>
+									{/each}
+								</Tabs.List>
+								{#if orderedWorktrees.length > 1}
+									<Kbd class="ml-1 hidden sm:inline-flex h-4 min-w-4 text-[10px] opacity-50" title="Ctrl+] — next worktree">⌃]</Kbd>
+								{/if}
+							</div>
 						</Tabs.Root>
 					{/if}
 
-					<Sheet.Root bind:open={sheetOpen}>
-						<Sheet.Trigger>
+					<Dialog.Root bind:open={createDialogOpen}>
+						<Dialog.Trigger>
 							{#snippet child({ props })}
 								<Button variant="ghost" size="icon" class="h-7 w-7" {...props}>
 									<PlusIcon class="h-4 w-4" />
 								</Button>
 							{/snippet}
-						</Sheet.Trigger>
-						<Sheet.Content>
-							<Sheet.Header>
-								<Sheet.Title>New Worktree</Sheet.Title>
-								<Sheet.Description>Create a new git worktree with a new branch.</Sheet.Description>
-							</Sheet.Header>
+						</Dialog.Trigger>
+						<Dialog.Content class="sm:max-w-md">
+							<Dialog.Header>
+								<Dialog.Title>New Worktree</Dialog.Title>
+								<Dialog.Description>Create a new git worktree with a new branch.</Dialog.Description>
+							</Dialog.Header>
 							<form
-								class="flex flex-col gap-4 px-4"
+								class="flex flex-col gap-4"
 								onsubmit={(e) => { e.preventDefault(); handleCreateWorktree(); }}
 							>
 								<div class="flex flex-col gap-2">
@@ -351,8 +363,8 @@
 									{/if}
 								</Button>
 							</form>
-						</Sheet.Content>
-					</Sheet.Root>
+						</Dialog.Content>
+					</Dialog.Root>
 
 					<div class="ml-auto">
 						<DropdownMenu.Root>
