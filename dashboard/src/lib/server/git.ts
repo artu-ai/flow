@@ -210,6 +210,119 @@ export async function createWorktree(repoPath: string, branchName: string): Prom
 /**
  * Remove a git worktree and optionally delete its branch.
  */
+export interface Branch {
+	name: string;
+	current: boolean;
+	remote: boolean;
+}
+
+/**
+ * Stage a single file.
+ */
+export async function gitStageFile(worktreePath: string, filePath: string): Promise<void> {
+	await execFileAsync('git', ['add', '--', filePath], { cwd: worktreePath });
+}
+
+/**
+ * Stage all changes.
+ */
+export async function gitStageAll(worktreePath: string): Promise<void> {
+	await execFileAsync('git', ['add', '-A'], { cwd: worktreePath });
+}
+
+/**
+ * Unstage a single file.
+ */
+export async function gitUnstageFile(worktreePath: string, filePath: string): Promise<void> {
+	await execFileAsync('git', ['reset', 'HEAD', '--', filePath], { cwd: worktreePath });
+}
+
+/**
+ * Discard changes to a file. Uses checkout for tracked files, clean for untracked.
+ */
+export async function gitDiscardFile(worktreePath: string, filePath: string): Promise<void> {
+	const { stdout } = await execFileAsync('git', ['status', '--porcelain', '--', filePath], {
+		cwd: worktreePath,
+	});
+	const line = stdout.trim();
+	if (line.startsWith('??')) {
+		await execFileAsync('git', ['clean', '-fd', '--', filePath], { cwd: worktreePath });
+	} else {
+		await execFileAsync('git', ['checkout', '--', filePath], { cwd: worktreePath });
+	}
+}
+
+/**
+ * Create a git commit with the given message.
+ */
+export async function gitCommit(worktreePath: string, message: string): Promise<string> {
+	const { stdout } = await execFileAsync('git', ['commit', '-m', message], { cwd: worktreePath });
+	return stdout;
+}
+
+/**
+ * Merge a branch into the current branch.
+ */
+export async function gitMerge(worktreePath: string, branch: string): Promise<string> {
+	const { stdout } = await execFileAsync('git', ['merge', branch], { cwd: worktreePath });
+	return stdout;
+}
+
+/**
+ * Checkout a branch.
+ */
+export async function gitCheckout(worktreePath: string, branch: string): Promise<string> {
+	const { stdout } = await execFileAsync('git', ['checkout', branch], { cwd: worktreePath });
+	return stdout;
+}
+
+/**
+ * Pull from remote.
+ */
+export async function gitPull(worktreePath: string): Promise<string> {
+	const { stdout } = await execFileAsync('git', ['pull'], { cwd: worktreePath });
+	return stdout;
+}
+
+/**
+ * Push to remote.
+ */
+export async function gitPush(worktreePath: string): Promise<string> {
+	const { stdout } = await execFileAsync('git', ['push'], { cwd: worktreePath });
+	return stdout;
+}
+
+/**
+ * Fetch all remotes.
+ */
+export async function gitFetch(worktreePath: string): Promise<string> {
+	const { stdout } = await execFileAsync('git', ['fetch', '--all'], { cwd: worktreePath });
+	return stdout;
+}
+
+/**
+ * List all local and remote branches.
+ */
+export async function listBranches(worktreePath: string): Promise<Branch[]> {
+	const { stdout } = await execFileAsync('git', ['branch', '-a', '--no-color'], {
+		cwd: worktreePath,
+	});
+	const branches: Branch[] = [];
+	for (const line of stdout.split('\n')) {
+		const trimmed = line.trim();
+		if (!trimmed || trimmed.includes('->')) continue;
+		const current = line.startsWith('* ');
+		const name = trimmed.replace(/^\* /, '');
+		const remote = name.startsWith('remotes/');
+		branches.push({
+			name: remote ? name.replace(/^remotes\//, '') : name,
+			current,
+			remote,
+		});
+	}
+	return branches;
+}
+
 export async function removeWorktree(repoPath: string, worktreePath: string): Promise<void> {
 	// Get the branch name before removing so we can clean it up
 	const allWorktrees = await listWorktrees(repoPath);
