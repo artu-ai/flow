@@ -30,6 +30,12 @@
 		if (sid) closeSession(sid);
 	}
 
+	/** Navigate to the terminal that sent the most recent notification. */
+	export function goToLastNotification() {
+		if (!lastNotification) return;
+		navigateToTerminal(lastNotification.sessionId, lastNotification.worktreePath);
+	}
+
 	function handleTerminalFocus(worktreePath: string) {
 		focusedPanel.update((s) => ({ ...s, [worktreePath]: 'terminal' }));
 	}
@@ -51,6 +57,8 @@
 	let unreadSessions: Set<string> = $state(new Set());
 	// Cooldown: suppress notifications briefly after visiting a terminal
 	let notificationCooldowns: Record<string, number> = {};
+	// Most recent notification source for keybinding navigation
+	let lastNotification: { sessionId: string; worktreePath: string } | null = null;
 
 	// Inline rename state
 	let renamingSessionId = $state<string | null>(null);
@@ -219,6 +227,7 @@
 		if (unreadSessions.has(sessionId)) return;
 
 		unreadSessions = new Set([...unreadSessions, sessionId]);
+		lastNotification = { sessionId, worktreePath };
 
 		const label = sessionLabels[sessionId] ?? 'Terminal';
 		toast(title ?? label, {

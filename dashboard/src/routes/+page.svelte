@@ -166,6 +166,13 @@
 			return;
 		}
 
+		// Ctrl+Shift+N : jump to last notification source
+		if (e.shiftKey && (e.key === 'N' || e.key === 'n')) {
+			e.preventDefault();
+			terminalRef?.goToLastNotification();
+			return;
+		}
+
 		// Ctrl+Shift+W : close active terminal
 		if (e.shiftKey && (e.key === 'W' || e.key === 'w')) {
 			e.preventDefault();
