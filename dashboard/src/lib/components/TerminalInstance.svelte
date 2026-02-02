@@ -75,10 +75,17 @@
 			})
 		);
 
-		// iTerm2 notifications: OSC 9 ; message ST
+		// iTerm2 / ConEmu notifications: OSC 9 ; message ST
+		// Sub-command 4 is the progress indicator: "4;state;progress"
+		//   state 0 = hidden (task finished), 1 = normal, 2 = error, 3 = indeterminate
 		oscDisposables.push(
 			term.parser.registerOscHandler(9, (data: string) => {
-				onnotification?.({ body: data });
+				if (data.startsWith('4;')) {
+					const state = parseInt(data.split(';')[1]);
+					if (state === 0) onnotification?.({ body: 'Finished' });
+				} else {
+					onnotification?.({ body: data });
+				}
 				return true;
 			})
 		);

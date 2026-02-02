@@ -47,8 +47,10 @@
 	let sessionLabels: Record<string, string> = $state({});
 	// Sessions that were manually renamed (don't override with escape sequence titles)
 	let manuallyRenamed: Set<string> = new Set();
-	// Sessions with unread notifications (cleared when navigated to)
-	let notifiedSessions: Set<string> = $state(new Set());
+	// Sessions with unread notification indicator (dot on tab)
+	let unreadSessions: Set<string> = $state(new Set());
+	// Cooldown: suppress notifications briefly after visiting a terminal
+	let notificationCooldowns: Record<string, number> = {};
 
 	// Inline rename state
 	let renamingSessionId = $state<string | null>(null);
@@ -174,8 +176,9 @@
 		// Clean up label, rename, and notification tracking
 		delete sessionLabels[sessionId];
 		manuallyRenamed.delete(sessionId);
-		if (notifiedSessions.has(sessionId)) {
-			notifiedSessions = new Set([...notifiedSessions].filter((id) => id !== sessionId));
+		delete notificationCooldowns[sessionId];
+		if (unreadSessions.has(sessionId)) {
+			unreadSessions = new Set([...unreadSessions].filter((id) => id !== sessionId));
 		}
 
 		// Delete server-side session
@@ -209,10 +212,13 @@
 	function handleNotification(sessionId: string, worktreePath: string, { title, body }: { title?: string; body: string }) {
 		// Don't show toast if this terminal is already active and visible
 		if (sessionId === activeSession && worktreePath === $currentWorktree?.path) return;
+		// Suppress notifications briefly after the user visited this terminal
+		const cooldownUntil = notificationCooldowns[sessionId] ?? 0;
+		if (Date.now() < cooldownUntil) return;
 		// Don't fire duplicate toasts — wait until the user navigates to this terminal
-		if (notifiedSessions.has(sessionId)) return;
+		if (unreadSessions.has(sessionId)) return;
 
-		notifiedSessions = new Set([...notifiedSessions, sessionId]);
+		unreadSessions = new Set([...unreadSessions, sessionId]);
 
 		const label = sessionLabels[sessionId] ?? 'Terminal';
 		toast(title ?? label, {
@@ -224,10 +230,14 @@
 		});
 	}
 
-	// Clear notification indicator when a session becomes active
+	// Clear notification indicator when a session becomes active, and start cooldown
 	$effect(() => {
-		if (activeSession && notifiedSessions.has(activeSession)) {
-			notifiedSessions = new Set([...notifiedSessions].filter((id) => id !== activeSession));
+		if (activeSession) {
+			if (unreadSessions.has(activeSession)) {
+				unreadSessions = new Set([...unreadSessions].filter((id) => id !== activeSession));
+			}
+			// Suppress re-notifications for 3s after visiting a terminal
+			notificationCooldowns[activeSession] = Date.now() + 3000;
 		}
 	});
 
@@ -344,7 +354,7 @@
 							onclick={(e: MouseEvent) => e.stopPropagation()}
 						/>
 					{:else}
-						{#if notifiedSessions.has(sessionId)}
+						{#if unreadSessions.has(sessionId)}
 							<span class="size-1.5 rounded-full bg-blue-400"></span>
 						{/if}
 						{sessionLabels[sessionId] ?? `Terminal ${i + 1}`}
