@@ -1,7 +1,8 @@
 <script lang="ts">
-	import { currentWorktree, currentFile, activeView, diffBase } from '$lib/stores';
+	import { currentWorktree, currentFile, activeView, diffBase, hasUnsavedChanges } from '$lib/stores';
 	import { onMount } from 'svelte';
 	import { Badge } from '$lib/components/ui/badge';
+	import { Button } from '$lib/components/ui/button';
 	import FileBreadcrumb from './FileBreadcrumb.svelte';
 
 	let editorContainer: HTMLDivElement;
@@ -51,6 +52,10 @@
 		editor.addCommand(monaco.KeyMod.CtrlCmd | monaco.KeyCode.KeyS, () => {
 			saveFile();
 		});
+
+		editor.onDidChangeModelContent(() => {
+			hasUnsavedChanges.set(true);
+		});
 	}
 
 	async function loadFile(worktreePath: string, filePath: string) {
@@ -68,6 +73,7 @@
 				model.setValue(data.content);
 				monaco.editor.setModelLanguage(model, data.language);
 			}
+			hasUnsavedChanges.set(false);
 		}
 	}
 
@@ -115,6 +121,7 @@
 			body: JSON.stringify({ content }),
 		});
 		saving = false;
+		hasUnsavedChanges.set(false);
 	}
 
 	$effect(() => {
@@ -144,6 +151,8 @@
 				</Badge>
 			{:else if saving}
 				<Badge variant="outline" class="text-[10px]">Saving...</Badge>
+			{:else if $hasUnsavedChanges}
+				<Button variant="ghost" size="sm" class="h-5 px-1.5 text-[10px]" onclick={saveFile}>Save</Button>
 			{:else}
 				<span class="text-muted-foreground/60">{language}</span>
 			{/if}

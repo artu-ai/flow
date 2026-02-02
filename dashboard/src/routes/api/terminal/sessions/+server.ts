@@ -7,7 +7,15 @@ export const GET: RequestHandler = async () => {
 };
 
 export const POST: RequestHandler = async ({ request }) => {
-	const { worktree } = await request.json();
+	const body = await request.json();
+
+	// sendBeacon can only POST, so accept _method=DELETE via POST
+	if (body._method === 'DELETE') {
+		if (body.id) ptyManager.destroy(body.id);
+		return json({ ok: true });
+	}
+
+	const { worktree } = body;
 	if (!worktree) {
 		return json({ error: 'worktree parameter required' }, { status: 400 });
 	}
@@ -18,4 +26,13 @@ export const POST: RequestHandler = async ({ request }) => {
 	} catch (e) {
 		return json({ error: String(e) }, { status: 500 });
 	}
+};
+
+export const DELETE: RequestHandler = async ({ request }) => {
+	const { id } = await request.json();
+	if (!id) {
+		return json({ error: 'id parameter required' }, { status: 400 });
+	}
+	ptyManager.destroy(id);
+	return json({ ok: true });
 };

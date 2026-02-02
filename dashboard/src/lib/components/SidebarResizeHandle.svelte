@@ -23,7 +23,6 @@
 		startX = e.clientX;
 		const sidebarEl = document.querySelector('[data-slot="sidebar-container"]');
 		startWidth = sidebarEl?.getBoundingClientRect().width ?? 256;
-		document.querySelector('[data-slot="sidebar-wrapper"]')?.setAttribute('data-resizing', '');
 		document.addEventListener('pointermove', onpointermove);
 		document.addEventListener('pointerup', onpointerup);
 	}
@@ -36,7 +35,6 @@
 
 	function onpointerup() {
 		dragging = false;
-		document.querySelector('[data-slot="sidebar-wrapper"]')?.removeAttribute('data-resizing');
 		document.removeEventListener('pointermove', onpointermove);
 		document.removeEventListener('pointerup', onpointerup);
 	}

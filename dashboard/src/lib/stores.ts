@@ -1,4 +1,21 @@
 import { writable } from 'svelte/store';
+import { browser } from '$app/environment';
+
+function persistedWritable<T>(key: string, initial: T) {
+	const stored = browser ? sessionStorage.getItem(key) : null;
+	const value = stored !== null ? JSON.parse(stored) as T : initial;
+	const store = writable<T>(value);
+	if (browser) {
+		store.subscribe((v) => {
+			if (v === null || v === undefined) {
+				sessionStorage.removeItem(key);
+			} else {
+				sessionStorage.setItem(key, JSON.stringify(v));
+			}
+		});
+	}
+	return store;
+}
 
 export type ViewTab = 'editor' | 'diff';
 
@@ -21,11 +38,15 @@ export type DiffBase = 'head' | 'main';
 export type GitFileStatus = 'modified' | 'added' | 'deleted' | 'renamed' | 'untracked' | 'none';
 
 export const currentWorktree = writable<Worktree | null>(null);
-export const currentFile = writable<string | null>(null);
-export const activeView = writable<ViewTab>('editor');
+export const currentFile = persistedWritable<string | null>('dashboard:currentFile', null);
+export const activeView = persistedWritable<ViewTab>('dashboard:activeView', 'editor');
 export const diffBase = writable<DiffBase>('head');
 export const worktrees = writable<Worktree[]>([]);
 export const terminalSessionId = writable<string | null>(null);
+export const hasUnsavedChanges = writable<boolean>(false);
+export const selectedWorktreePath = persistedWritable<string | null>('dashboard:worktreePath', null);
+export const sidebarWidth = persistedWritable<number>('dashboard:sidebarWidth', 256);
+export const terminalWidth = persistedWritable<number>('dashboard:terminalWidth', 480);
 
 export type InlineEditAction =
 	| { type: 'newFile'; parentPath: string }

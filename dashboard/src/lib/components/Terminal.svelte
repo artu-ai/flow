@@ -9,8 +9,22 @@
 	let fitAddon: any;
 	let ws: WebSocket | null = null;
 
+	function onUnload() {
+		const sid = $terminalSessionId;
+		if (sid) {
+			navigator.sendBeacon(
+				'/api/terminal/sessions',
+				new Blob([JSON.stringify({ id: sid, _method: 'DELETE' })], { type: 'application/json' })
+			);
+			terminalSessionId.set(null);
+		}
+	}
+
 	onMount(() => {
+		window.addEventListener('unload', onUnload);
+
 		return () => {
+			window.removeEventListener('unload', onUnload);
 			ws?.close();
 			term?.dispose();
 		};

@@ -1,6 +1,6 @@
 <script lang="ts">
 	import '../app.css';
-	import { currentWorktree, worktrees } from '$lib/stores';
+	import { currentWorktree, worktrees, selectedWorktreePath } from '$lib/stores';
 	import type { Worktree } from '$lib/stores';
 	import { onMount } from 'svelte';
 
@@ -10,10 +10,19 @@
 		const res = await fetch('/api/worktrees');
 		const data: Worktree[] = await res.json();
 		worktrees.set(data);
-		if (data.length > 0 && !$currentWorktree) {
-			currentWorktree.set(data[0]);
+		if (data.length > 0) {
+			const saved = $selectedWorktreePath;
+			const match = saved ? data.find((w) => w.path === saved) : null;
+			currentWorktree.set(match ?? data[0]);
 		}
 	}
+
+	// Persist selected worktree path whenever it changes
+	$effect(() => {
+		if ($currentWorktree) {
+			selectedWorktreePath.set($currentWorktree.path);
+		}
+	});
 
 	onMount(() => {
 		fetchWorktrees();

@@ -4,10 +4,21 @@
 	import * as Sidebar from '$lib/components/ui/sidebar/index.js';
 	import * as Tabs from '$lib/components/ui/tabs';
 	import { Badge } from '$lib/components/ui/badge';
-	import { currentWorktree, worktrees, terminalSessionId } from '$lib/stores';
+	import { currentWorktree, worktrees, terminalSessionId, sidebarWidth, terminalWidth, hasUnsavedChanges } from '$lib/stores';
 	import Editor from '$lib/components/Editor.svelte';
 	import Terminal from '$lib/components/Terminal.svelte';
 	import PanelResizeHandle from '$lib/components/PanelResizeHandle.svelte';
+	import { onMount } from 'svelte';
+
+	onMount(() => {
+		function onBeforeUnload(e: BeforeUnloadEvent) {
+			if ($terminalSessionId || $hasUnsavedChanges) {
+				e.preventDefault();
+			}
+		}
+		window.addEventListener('beforeunload', onBeforeUnload);
+		return () => window.removeEventListener('beforeunload', onBeforeUnload);
+	});
 
 	function handleWorktreeChange(value: string) {
 		const wt = $worktrees.find((w) => w.path === value);
@@ -18,22 +29,20 @@
 	}
 
 	let terminalOpen = $state(true);
-	let sidebarWidth = $state(256);
-	let terminalWidth = $state(480);
 
 	const MIN_TERMINAL = 200;
 	const MAX_TERMINAL = 800;
 
 	function handleTerminalResize(delta: number) {
-		terminalWidth = Math.min(MAX_TERMINAL, Math.max(MIN_TERMINAL, terminalWidth - delta));
+		terminalWidth.update((w) => Math.min(MAX_TERMINAL, Math.max(MIN_TERMINAL, w - delta)));
 	}
 </script>
 
 <div class="flex h-full">
 	<!-- Left: sidebar + editor area -->
 	<div class="flex min-w-0 flex-1">
-		<Sidebar.Provider style="--sidebar-width: {sidebarWidth}px">
-			<EditorSidebar onwidthchange={(w) => sidebarWidth = w} />
+		<Sidebar.Provider style="--sidebar-width: {$sidebarWidth}px">
+			<EditorSidebar onwidthchange={(w) => sidebarWidth.set(w)} />
 			<Sidebar.Inset class="overflow-hidden">
 				<header class="flex h-12 shrink-0 items-center gap-2 border-b border-border px-4">
 					<Sidebar.Trigger class="-ms-1" />
@@ -64,7 +73,7 @@
 	<!-- Right: terminal panel (full height, outside sidebar) -->
 	{#if terminalOpen}
 		<PanelResizeHandle onresize={handleTerminalResize} />
-		<div class="flex h-full shrink-0 flex-col overflow-hidden" style="width: {terminalWidth}px">
+		<div class="flex h-full shrink-0 flex-col overflow-hidden" style="width: {$terminalWidth}px">
 			<Terminal />
 		</div>
 	{/if}
