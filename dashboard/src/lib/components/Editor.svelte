@@ -1,8 +1,11 @@
 <script lang="ts">
-	import { currentFile, activeView, diffBase, hasUnsavedChanges, focusedPanel } from '$lib/stores';
+	import { currentFile, activeView, diffBase, hasUnsavedChanges, focusedPanel, completionConfig } from '$lib/stores';
+	import type { CompletionConfig } from '$lib/stores';
+	import { get } from 'svelte/store';
 	import { onMount } from 'svelte';
 	import { Badge } from '$lib/components/ui/badge';
 	import { Button } from '$lib/components/ui/button';
+	import LoaderCircleIcon from '@lucide/svelte/icons/loader-circle';
 	import FileBreadcrumb from './FileBreadcrumb.svelte';
 
 	let { worktreePath }: { worktreePath: string } = $props();
@@ -16,6 +19,13 @@
 
 	let language: string = $state('plaintext');
 	let saving: boolean = $state(false);
+	let completionLoading: boolean = $state(false);
+	let suppressChangeHandler = false;
+	let completionDisposable: any = null;
+
+	let diagnostics: { severity: string }[] = $state([]);
+	let errorCount = $derived(diagnostics.filter((d) => d.severity === 'error').length);
+	let warningCount = $derived(diagnostics.filter((d) => d.severity === 'warning').length);
 
 	let filePath = $derived($currentFile[worktreePath] ?? null);
 	let unsaved = $derived($hasUnsavedChanges[worktreePath] ?? false);
@@ -23,6 +33,7 @@
 	onMount(() => {
 		monacoReady = initMonaco();
 		return () => {
+			completionDisposable?.dispose();
 			editor?.dispose();
 			diffEditor?.getModel()?.original?.dispose();
 			diffEditor?.getModel()?.modified?.dispose();
@@ -52,6 +63,7 @@
 			lineNumbers: 'on',
 			scrollBeyondLastLine: false,
 			padding: { top: 8 },
+			inlineSuggest: { enabled: true },
 		});
 
 		editor.addCommand(monaco.KeyMod.CtrlCmd | monaco.KeyCode.KeyS, () => {
@@ -59,11 +71,74 @@
 		});
 
 		editor.onDidChangeModelContent(() => {
+			if (suppressChangeHandler) return;
 			hasUnsavedChanges.update((s) => ({ ...s, [worktreePath]: true }));
+			// Clear stale lint markers while editing
+			const model = editor.getModel();
+			if (model) monaco.editor.setModelMarkers(model, 'lint', []);
+			diagnostics = [];
 		});
 
 		editor.onDidFocusEditorWidget(() => {
 			focusedPanel.update((s) => ({ ...s, [worktreePath]: 'editor' }));
+		});
+
+		// Register inline completions provider
+		completionDisposable = monaco.languages.registerInlineCompletionsProvider('*', {
+			provideInlineCompletions: async (model: any, position: any, _ctx: any, token: any) => {
+				const cfg: CompletionConfig = get(completionConfig);
+				if (!cfg.activeProvider) return { items: [] };
+
+				const fullText = model.getValue();
+				const offset = model.getOffsetAt(position);
+				const prefix = fullText.slice(Math.max(0, offset - 4000), offset);
+				const suffix = fullText.slice(offset, offset + 1500);
+				const langId = model.getLanguageId?.() ?? language;
+				const file = filePath ?? 'untitled';
+
+				const providerConfig = cfg.activeProvider === 'ollama'
+					? cfg.ollama
+					: cfg.claude;
+
+				const controller = new AbortController();
+				token.onCancellationRequested(() => controller.abort());
+
+				completionLoading = true;
+				try {
+					const res = await fetch('/api/completions', {
+						method: 'POST',
+						headers: { 'Content-Type': 'application/json' },
+						body: JSON.stringify({
+							provider: cfg.activeProvider,
+							providerConfig,
+							context: { prefix, suffix, language: langId, filename: file },
+						}),
+						signal: controller.signal,
+					});
+					if (!res.ok) return { items: [] };
+					const data = await res.json();
+					if (!data.text) return { items: [] };
+
+					return {
+						items: [
+							{
+								insertText: data.text,
+								range: {
+									startLineNumber: position.lineNumber,
+									startColumn: position.column,
+									endLineNumber: position.lineNumber,
+									endColumn: position.column,
+								},
+							},
+						],
+					};
+				} catch {
+					return { items: [] };
+				} finally {
+					completionLoading = false;
+				}
+			},
+			freeInlineCompletions: () => {},
 		});
 	}
 
@@ -74,6 +149,14 @@
 
 	async function loadFile(file: string) {
 		await monacoReady;
+
+		// Clear stale markers and diagnostics
+		if (editor && monaco) {
+			const model = editor.getModel();
+			if (model) monaco.editor.setModelMarkers(model, 'lint', []);
+		}
+		diagnostics = [];
+
 		const params = new URLSearchParams({ root: worktreePath, path: file });
 		const res = await fetch(`/api/files?${params}`);
 		const data = await res.json();
@@ -89,6 +172,8 @@
 			}
 			hasUnsavedChanges.update((s) => ({ ...s, [worktreePath]: false }));
 		}
+
+		lintCurrentFile();
 	}
 
 	async function loadDiff(file: string, base: string) {
@@ -127,15 +212,82 @@
 	async function saveFile() {
 		if (!filePath || !editor) return;
 		saving = true;
-		const content = editor.getValue();
+		let content = editor.getValue();
+
+		// Format before saving
+		try {
+			const fmtRes = await fetch('/api/format', {
+				method: 'POST',
+				headers: { 'Content-Type': 'application/json' },
+				body: JSON.stringify({ root: worktreePath, path: filePath, content }),
+			});
+			const fmtData = await fmtRes.json();
+			if (fmtData.formatted && fmtData.content != null && fmtData.content !== content) {
+				content = fmtData.content;
+				const model = editor.getModel();
+				if (model) {
+					suppressChangeHandler = true;
+					editor.executeEdits('format-on-save', [
+						{
+							range: model.getFullModelRange(),
+							text: content,
+						},
+					]);
+					suppressChangeHandler = false;
+				}
+			}
+		} catch {
+			suppressChangeHandler = false;
+		}
+
+		// Save (formatted) content to disk
 		const params = new URLSearchParams({ root: worktreePath, path: filePath });
 		await fetch(`/api/files?${params}`, {
 			method: 'PUT',
 			headers: { 'Content-Type': 'application/json' },
 			body: JSON.stringify({ content }),
 		});
+
 		saving = false;
 		hasUnsavedChanges.update((s) => ({ ...s, [worktreePath]: false }));
+
+		// Lint after save
+		lintCurrentFile();
+	}
+
+	async function lintCurrentFile() {
+		if (!filePath || !editor || !monaco) return;
+		try {
+			const res = await fetch('/api/lint', {
+				method: 'POST',
+				headers: { 'Content-Type': 'application/json' },
+				body: JSON.stringify({ root: worktreePath, path: filePath }),
+			});
+			const data = await res.json();
+			if (data.diagnostics) {
+				diagnostics = data.diagnostics;
+				const model = editor.getModel();
+				if (model) {
+					const markers = data.diagnostics.map((d: any) => ({
+						startLineNumber: d.line,
+						startColumn: d.column,
+						endLineNumber: d.endLine,
+						endColumn: d.endColumn,
+						message: d.code ? `${d.message} (${d.code})` : d.message,
+						severity:
+							d.severity === 'error'
+								? monaco.MarkerSeverity.Error
+								: d.severity === 'warning'
+									? monaco.MarkerSeverity.Warning
+									: monaco.MarkerSeverity.Info,
+						source: d.source,
+					}));
+					monaco.editor.setModelMarkers(model, 'lint', markers);
+				}
+			}
+		} catch {
+			// Linting is best-effort
+		}
 	}
 
 	$effect(() => {
@@ -166,7 +318,18 @@
 			{:else if unsaved}
 				<Button variant="ghost" size="sm" class="h-5 px-1.5 text-[10px]" onclick={saveFile}>Save</Button>
 			{:else}
-				<span class="text-muted-foreground/60">{language}</span>
+				<div class="flex items-center gap-1.5">
+					{#if completionLoading}
+						<LoaderCircleIcon class="h-3 w-3 animate-spin text-muted-foreground/60" />
+					{/if}
+					{#if errorCount > 0}
+						<Badge variant="destructive" class="text-[10px] px-1.5 py-0">{errorCount} {errorCount === 1 ? 'error' : 'errors'}</Badge>
+					{/if}
+					{#if warningCount > 0}
+						<Badge variant="outline" class="text-[10px] px-1.5 py-0 border-amber-500/50 text-amber-500">{warningCount} {warningCount === 1 ? 'warning' : 'warnings'}</Badge>
+					{/if}
+					<span class="text-muted-foreground/60">{language}</span>
+				</div>
 			{/if}
 		</FileBreadcrumb>
 	{/if}
