@@ -31,6 +31,8 @@ async function getBiomeProject(configDir: string): Promise<{ projectKey: number 
 		try {
 			const raw = await readFile(join(configDir, name), 'utf-8');
 			const config = JSON.parse(raw);
+			delete config.$schema;
+			delete config.vcs;
 			biome.workspace.updateSettings({ projectKey, configuration: config });
 			break;
 		} catch {

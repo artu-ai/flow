@@ -1,5 +1,5 @@
 <script lang="ts">
-	import { currentFile, activeView, diffBase, hasUnsavedChanges, focusedPanel, completionConfig } from '$lib/stores';
+	import { currentFile, activeView, diffBase, hasUnsavedChanges, focusedPanel, completionConfig, linterConfig } from '$lib/stores';
 	import type { CompletionConfig } from '$lib/stores';
 	import { get } from 'svelte/store';
 	import { onMount } from 'svelte';
@@ -261,7 +261,7 @@
 			const res = await fetch('/api/lint', {
 				method: 'POST',
 				headers: { 'Content-Type': 'application/json' },
-				body: JSON.stringify({ root: worktreePath, path: filePath }),
+				body: JSON.stringify({ root: worktreePath, path: filePath, enabledLinters: get(linterConfig) }),
 			});
 			const data = await res.json();
 			if (data.diagnostics) {

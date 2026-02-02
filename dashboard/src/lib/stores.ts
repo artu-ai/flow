@@ -27,6 +27,8 @@ function persistedWritable<T>(key: string, initial: T) {
 				sessionStorage.removeItem(key);
 			} else {
 				sessionStorage.setItem(key, JSON.stringify(v));
+
+                
 			}
 		});
 	}
@@ -72,7 +74,33 @@ export const terminalLayout = persistedWritable<TerminalLayout>('dashboard:termi
 export const worktreeOrder = persistedWritable<string[]>('dashboard:worktreeOrder', []);
 export const previousWorktreePath = writable<string | null>(null);
 export const showGitIgnored = persistedWritable<boolean>('dashboard:showGitIgnored', false);
+
+export interface LinterConfig {
+	biome: boolean;
+	eslint: boolean;
+	ruff: boolean;
+}
+export const linterConfig = localPersistedWritable<LinterConfig>('dashboard:linterConfig', {
+	biome: true,
+	eslint: true,
+	ruff: true,
+});
 export const linearApiKey = localPersistedWritable<string | null>('dashboard:linearApiKey', null);
+
+export interface CompletionConfig {
+	activeProvider: 'ollama' | 'claude' | null;
+	ollama: { url: string; model: string };
+	claude: { apiKey: string; model: string };
+}
+
+export const completionConfig = localPersistedWritable<CompletionConfig>(
+	'dashboard:completionConfig',
+	{
+		activeProvider: null,
+		ollama: { url: 'http://localhost:11434', model: '' },
+		claude: { apiKey: '', model: 'claude-haiku-4-5-20241022' },
+	}
+);
 
 /** Which panel was last focused per worktree path: 'editor' or 'terminal' */
 export const focusedPanel = writable<Record<string, 'editor' | 'terminal'>>({});

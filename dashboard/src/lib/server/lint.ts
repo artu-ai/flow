@@ -6,8 +6,6 @@ import {
 	hasBiomeConfig,
 	hasEslintConfig,
 	hasRuff,
-	BIOME_EXTENSIONS,
-	ESLINT_EXTENSIONS,
 } from './toolchain';
 
 export interface LintDiagnostic {
@@ -50,22 +48,21 @@ async function getToolchain(root: string, filePath: string): Promise<ToolchainCa
 	return cached;
 }
 
-/** Returns all applicable linters for the given file. */
+/** Returns all configured linters — each linter decides if it applies to the file. */
 async function detectLinters(
 	root: string,
 	filePath: string,
 ): Promise<LinterInfo[]> {
-	const ext = extname(filePath).toLowerCase();
 	const tc = await getToolchain(root, filePath);
 	const linters: LinterInfo[] = [];
 
-	if (tc.biomeDir && BIOME_EXTENSIONS.has(ext)) {
+	if (tc.biomeDir) {
 		linters.push({ linter: 'biome', configDir: tc.biomeDir });
 	}
-	if (tc.eslintDir && ESLINT_EXTENSIONS.has(ext)) {
+	if (tc.eslintDir) {
 		linters.push({ linter: 'eslint', configDir: tc.eslintDir });
 	}
-	if (tc.hasRuff && ext === '.py') {
+	if (tc.hasRuff) {
 		linters.push({ linter: 'ruff', configDir: null });
 	}
 
@@ -128,12 +125,16 @@ function parseBiomeOutput(
 	return diagnostics;
 }
 
-function parseEslintOutput(stdout: string): LintDiagnostic[] {
+/** Sentinel returned when ESLint has no config for the file */
+const ESLINT_NO_CONFIG = Symbol('eslint-no-config');
+
+function parseEslintOutput(stdout: string): LintDiagnostic[] | typeof ESLINT_NO_CONFIG {
 	const diagnostics: LintDiagnostic[] = [];
 	try {
 		const parsed = JSON.parse(stdout);
 		for (const file of parsed) {
 			for (const msg of file.messages ?? []) {
+				if (msg.fatal && !msg.ruleId) return ESLINT_NO_CONFIG;
 				diagnostics.push({
 					line: msg.line ?? 1,
 					column: msg.column ?? 1,
@@ -199,23 +200,41 @@ async function runBiome(
 	return parseBiomeOutput(stdout, content);
 }
 
+/** Extensions that ESLint reported "no matching config" for, per configDir */
+const eslintSkipExtensions = new Map<string, Set<string>>();
+
 async function runEslint(
 	fullPath: string,
 	configDir: string | null,
 	root: string,
 ): Promise<LintDiagnostic[]> {
+	const cwd = configDir ?? root;
+	const ext = extname(fullPath).toLowerCase();
+
+	const skipped = eslintSkipExtensions.get(cwd);
+	if (skipped?.has(ext)) return [];
+
 	let stdout = '';
 	try {
 		const result = await execFile(
 			'npx',
-			['eslint', '--format=json', fullPath],
-			{ cwd: configDir ?? root },
+			['eslint', '--no-warn-ignored', '--format=json', fullPath],
+			{ cwd },
 		);
 		stdout = result.stdout;
 	} catch (e: any) {
 		stdout = e.stdout ?? '';
 	}
-	return parseEslintOutput(stdout);
+
+	const result = parseEslintOutput(stdout);
+	if (result === ESLINT_NO_CONFIG) {
+		if (!eslintSkipExtensions.has(cwd)) {
+			eslintSkipExtensions.set(cwd, new Set());
+		}
+		eslintSkipExtensions.get(cwd)!.add(ext);
+		return [];
+	}
+	return result;
 }
 
 async function runRuff(fullPath: string): Promise<LintDiagnostic[]> {
@@ -236,8 +255,12 @@ async function runRuff(fullPath: string): Promise<LintDiagnostic[]> {
 export async function lintFile(
 	root: string,
 	filePath: string,
+	enabledLinters?: { biome?: boolean; eslint?: boolean; ruff?: boolean },
 ): Promise<LintDiagnostic[]> {
-	const linters = await detectLinters(root, filePath);
+	let linters = await detectLinters(root, filePath);
+	if (enabledLinters) {
+		linters = linters.filter(({ linter }) => enabledLinters[linter] !== false);
+	}
 	if (linters.length === 0) return [];
 
 	const fullPath = resolve(root, filePath);

@@ -17,7 +17,7 @@ export const BIOME_EXTENSIONS = new Set([
 	'.gql',
 ]);
 
-export const ESLINT_EXTENSIONS = new Set(['.js', '.ts', '.jsx', '.tsx', '.svelte']);
+export const ESLINT_EXTENSIONS = new Set(['.js', '.ts', '.jsx', '.tsx', '.svelte', '.vue']);
 
 export async function fileExists(path: string): Promise<boolean> {
 	try {

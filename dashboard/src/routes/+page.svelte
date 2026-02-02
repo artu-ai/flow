@@ -5,9 +5,10 @@
 	import * as Tabs from '$lib/components/ui/tabs';
 	import * as AlertDialog from '$lib/components/ui/alert-dialog';
 	import * as DropdownMenu from '$lib/components/ui/dropdown-menu';
+	import * as Tooltip from '$lib/components/ui/tooltip/index.js';
 	import { Button } from '$lib/components/ui/button';
 	import { Kbd } from '$lib/components/ui/kbd';
-	import { currentWorktree, worktrees, terminalSessions, activeTerminalSession, sidebarWidth, terminalWidth, terminalHeight, terminalLayout, hasUnsavedChanges, worktreeOrder, previousWorktreePath, focusedPanel, showGitIgnored, linearApiKey, currentFile, gitFileStatuses } from '$lib/stores';
+	import { currentWorktree, worktrees, terminalSessions, activeTerminalSession, sidebarWidth, terminalWidth, terminalHeight, terminalLayout, hasUnsavedChanges, worktreeOrder, previousWorktreePath, focusedPanel, showGitIgnored, linearApiKey, completionConfig, linterConfig, currentFile, gitFileStatuses } from '$lib/stores';
 	import type { Worktree } from '$lib/stores';
 	import Editor from '$lib/components/Editor.svelte';
 	import Terminal from '$lib/components/Terminal.svelte';
@@ -15,6 +16,7 @@
 	import EnvEditor from '$lib/components/EnvEditor.svelte';
 	import CreateWorktreeDialog from '$lib/components/CreateWorktreeDialog.svelte';
 	import LinearSettings from '$lib/components/LinearSettings.svelte';
+	import CompletionSettings from '$lib/components/CompletionSettings.svelte';
 	import PlusIcon from '@lucide/svelte/icons/plus';
 	import XIcon from '@lucide/svelte/icons/x';
 	import LoaderCircleIcon from '@lucide/svelte/icons/loader-circle';
@@ -103,6 +105,7 @@
 
 	let editorRefs = $state<Record<string, Editor>>({});
 	let terminalRef = $state<Terminal>();
+	let editorSidebarRef = $state<EditorSidebar>();
 
 	function handleWorktreeChange(value: string) {
 		const wt = $worktrees.find((w) => w.path === value);
@@ -197,6 +200,20 @@
 			return;
 		}
 
+		// Ctrl+Shift+F : toggle sidebar Files tab
+		if (e.shiftKey && (e.key === 'F' || e.key === 'f')) {
+			e.preventDefault();
+			editorSidebarRef?.focusTab('files');
+			return;
+		}
+
+		// Ctrl+Shift+G : toggle sidebar Changes tab
+		if (e.shiftKey && (e.key === 'G' || e.key === 'g')) {
+			e.preventDefault();
+			editorSidebarRef?.focusTab('changes');
+			return;
+		}
+
 		if (e.shiftKey) return;
 
 		// Ctrl+` : focus the active terminal, or create one if none exist
@@ -243,6 +260,7 @@
 	let terminalOpen = $state(true);
 	let createDialogOpen = $state(false);
 	let linearSettingsOpen = $state(false);
+	let completionSettingsOpen = $state(false);
 
 	async function handleWorktreeCreated(data: { worktreePath: string }) {
 		const listRes = await fetch('/api/worktrees');
@@ -357,10 +375,17 @@
 
 <div class="flex h-full">
 	<Sidebar.Provider style="--sidebar-width: {$sidebarWidth}px">
-			<EditorSidebar onwidthchange={(w) => sidebarWidth.set(w)} />
+			<EditorSidebar bind:this={editorSidebarRef} onwidthchange={(w) => sidebarWidth.set(w)} />
 			<Sidebar.Inset class="flex flex-col overflow-hidden">
 				<header class="flex h-12 shrink-0 items-center gap-2 border-b border-border px-4">
-					<Sidebar.Trigger class="-ms-1" />
+					<Tooltip.Root>
+						<Tooltip.Trigger>
+							{#snippet child({ props })}
+								<Sidebar.Trigger class="-ms-1" {...props} />
+							{/snippet}
+						</Tooltip.Trigger>
+						<Tooltip.Content side="bottom" class="flex items-center gap-1.5">Toggle sidebar <Kbd class="h-4 min-w-4 text-[10px]">⌃B</Kbd></Tooltip.Content>
+					</Tooltip.Root>
 					<Separator orientation="vertical" class="me-2 data-[orientation=vertical]:h-4" />
 
 					{#if orderedWorktrees.length > 0}
@@ -430,6 +455,29 @@
 									{/if}
 								</DropdownMenu.Item>
 								<DropdownMenu.Sub>
+									<DropdownMenu.SubTrigger>Linters</DropdownMenu.SubTrigger>
+									<DropdownMenu.SubContent>
+										<DropdownMenu.Item onclick={() => linterConfig.update((c) => ({ ...c, biome: !c.biome }))}>
+											Biome
+											{#if $linterConfig.biome}
+												<span class="ml-auto text-xs text-muted-foreground">&#10003;</span>
+											{/if}
+										</DropdownMenu.Item>
+										<DropdownMenu.Item onclick={() => linterConfig.update((c) => ({ ...c, eslint: !c.eslint }))}>
+											ESLint
+											{#if $linterConfig.eslint}
+												<span class="ml-auto text-xs text-muted-foreground">&#10003;</span>
+											{/if}
+										</DropdownMenu.Item>
+										<DropdownMenu.Item onclick={() => linterConfig.update((c) => ({ ...c, ruff: !c.ruff }))}>
+											Ruff
+											{#if $linterConfig.ruff}
+												<span class="ml-auto text-xs text-muted-foreground">&#10003;</span>
+											{/if}
+										</DropdownMenu.Item>
+									</DropdownMenu.SubContent>
+								</DropdownMenu.Sub>
+								<DropdownMenu.Sub>
 									<DropdownMenu.SubTrigger class="gap-2" onclick={loadEnvFiles}>
 										<FileKeyIcon class="h-4 w-4" />
 										Environment
@@ -470,6 +518,12 @@
 								<DropdownMenu.Item onclick={() => linearSettingsOpen = true}>
 									Linear integration
 									{#if $linearApiKey}
+										<span class="ml-auto text-xs text-muted-foreground">&#10003;</span>
+									{/if}
+								</DropdownMenu.Item>
+								<DropdownMenu.Item onclick={() => completionSettingsOpen = true}>
+									Code completion
+									{#if $completionConfig.activeProvider}
 										<span class="ml-auto text-xs text-muted-foreground">&#10003;</span>
 									{/if}
 								</DropdownMenu.Item>
@@ -533,3 +587,4 @@
 
 <CreateWorktreeDialog bind:open={createDialogOpen} oncreated={handleWorktreeCreated} />
 <LinearSettings bind:open={linearSettingsOpen} />
+<CompletionSettings bind:open={completionSettingsOpen} />
