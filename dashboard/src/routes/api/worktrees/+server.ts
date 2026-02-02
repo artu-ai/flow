@@ -25,8 +25,11 @@ export const POST: RequestHandler = async ({ request }) => {
 		return json({ error: 'Invalid branch name. Use only letters, numbers, dots, hyphens, underscores, and slashes.' }, { status: 400 });
 	}
 
+	const sourceBranch = typeof body.sourceBranch === 'string' ? body.sourceBranch : undefined;
+	const sourceWorktreePath = typeof body.sourceWorktreePath === 'string' ? body.sourceWorktreePath : undefined;
+
 	try {
-		const result = await createWorktree(process.cwd(), branchName);
+		const result = await createWorktree(process.cwd(), branchName, sourceBranch, sourceWorktreePath);
 		return json(result);
 	} catch (e) {
 		return json({ error: e instanceof Error ? e.message : String(e) }, { status: 500 });

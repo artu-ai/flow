@@ -4,7 +4,7 @@
 	import * as ContextMenu from '$lib/components/ui/context-menu/index.js';
 	import ChevronRightIcon from '@lucide/svelte/icons/chevron-right';
 	import FolderIcon from '@lucide/svelte/icons/folder';
-	import { currentWorktree, currentFile, activeView, gitFileStatuses, statusColor, folderStatus, inlineEdit } from '$lib/stores';
+	import { currentWorktree, currentFile, activeView, gitFileStatuses, statusColor, folderStatus, inlineEdit, showGitIgnored } from '$lib/stores';
 	import type { FileEntry, InlineEditAction } from '$lib/stores';
 	import Self from './LazyDir.svelte';
 	import FileTypeIcon from './FileTypeIcon.svelte';
@@ -17,12 +17,14 @@
 
 	async function loadChildren() {
 		const params = new URLSearchParams({ root, dir: path });
+		if ($showGitIgnored) params.set('showGitIgnored', '1');
 		const res = await fetch(`/api/files?${params}`);
 		children = await res.json();
 	}
 
 	async function forceLoadChildren() {
 		const params = new URLSearchParams({ root, dir: path });
+		if ($showGitIgnored) params.set('showGitIgnored', '1');
 		const res = await fetch(`/api/files?${params}`);
 		children = await res.json();
 	}

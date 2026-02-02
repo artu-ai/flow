@@ -6,6 +6,7 @@ export const GET: RequestHandler = async ({ url }) => {
 	const root = url.searchParams.get('root');
 	const dir = url.searchParams.get('dir');
 	const path = url.searchParams.get('path');
+	const showGitIgnored = url.searchParams.get('showGitIgnored') === '1';
 
 	if (!root) {
 		return json({ error: 'root parameter required' }, { status: 400 });
@@ -13,7 +14,7 @@ export const GET: RequestHandler = async ({ url }) => {
 
 	try {
 		if (dir !== null) {
-			const entries = await listDirectory(root, dir || '.');
+			const entries = await listDirectory(root, dir || '.', { showGitIgnored });
 			return json(entries);
 		}
 

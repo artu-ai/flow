@@ -3,23 +3,26 @@
 	import { Separator } from '$lib/components/ui/separator/index.js';
 	import * as Sidebar from '$lib/components/ui/sidebar/index.js';
 	import * as Tabs from '$lib/components/ui/tabs';
-	import * as Dialog from '$lib/components/ui/dialog';
 	import * as AlertDialog from '$lib/components/ui/alert-dialog';
 	import * as DropdownMenu from '$lib/components/ui/dropdown-menu';
 	import { Button } from '$lib/components/ui/button';
-	import { Input } from '$lib/components/ui/input';
 	import { Kbd } from '$lib/components/ui/kbd';
-	import { currentWorktree, worktrees, terminalSessions, activeTerminalSession, sidebarWidth, terminalWidth, terminalHeight, terminalLayout, hasUnsavedChanges, worktreeOrder, previousWorktreePath } from '$lib/stores';
+	import { currentWorktree, worktrees, terminalSessions, activeTerminalSession, sidebarWidth, terminalWidth, terminalHeight, terminalLayout, hasUnsavedChanges, worktreeOrder, previousWorktreePath, focusedPanel, showGitIgnored, linearApiKey } from '$lib/stores';
 	import type { Worktree } from '$lib/stores';
 	import Editor from '$lib/components/Editor.svelte';
 	import Terminal from '$lib/components/Terminal.svelte';
 	import PanelResizeHandle from '$lib/components/PanelResizeHandle.svelte';
+	import EnvEditor from '$lib/components/EnvEditor.svelte';
+	import CreateWorktreeDialog from '$lib/components/CreateWorktreeDialog.svelte';
+	import LinearSettings from '$lib/components/LinearSettings.svelte';
 	import PlusIcon from '@lucide/svelte/icons/plus';
 	import XIcon from '@lucide/svelte/icons/x';
 	import LoaderCircleIcon from '@lucide/svelte/icons/loader-circle';
 	import SettingsIcon from '@lucide/svelte/icons/settings';
 	import PanelRightIcon from '@lucide/svelte/icons/panel-right';
 	import PanelBottomIcon from '@lucide/svelte/icons/panel-bottom';
+	import EyeIcon from '@lucide/svelte/icons/eye';
+	import FileKeyIcon from '@lucide/svelte/icons/file-key';
 	import { onMount } from 'svelte';
 
 	onMount(() => {
@@ -98,11 +101,26 @@
 		dropIndex = null;
 	}
 
+	let editorRef = $state<Editor>();
+	let terminalRef = $state<Terminal>();
+
 	function handleWorktreeChange(value: string) {
 		const wt = $worktrees.find((w) => w.path === value);
 		if (wt) {
 			previousWorktreePath.set($currentWorktree?.path ?? null);
 			currentWorktree.set(wt);
+		}
+	}
+
+	/** Restore focus to whichever panel was last focused for the current worktree. */
+	function restoreFocus() {
+		const path = $currentWorktree?.path;
+		if (!path) return;
+		const panel = $focusedPanel[path];
+		if (panel === 'terminal') {
+			terminalRef?.focusActive();
+		} else {
+			editorRef?.focus();
 		}
 	}
 
@@ -128,15 +146,73 @@
 			return;
 		}
 
+		// Ctrl+Shift+1-9: jump to terminal tab by number
+		if (e.shiftKey && e.key >= '1' && e.key <= '9') {
+			e.preventDefault();
+			const path = $currentWorktree?.path;
+			if (!path) return;
+			const sessions = $terminalSessions[path] ?? [];
+			const targetIdx = parseInt(e.key) - 1;
+			if (targetIdx < sessions.length) {
+				activeTerminalSession.update((s) => ({ ...s, [path]: sessions[targetIdx] }));
+			}
+			return;
+		}
+
+		// Ctrl+Shift+T : create new terminal
+		if (e.shiftKey && (e.key === 'T' || e.key === 't')) {
+			e.preventDefault();
+			terminalRef?.createSession();
+			return;
+		}
+
+		// Ctrl+Shift+W : close active terminal
+		if (e.shiftKey && (e.key === 'W' || e.key === 'w')) {
+			e.preventDefault();
+			terminalRef?.closeActive();
+			return;
+		}
+
+		// Ctrl+Shift+E : open create worktree dialog
+		if (e.shiftKey && (e.key === 'E' || e.key === 'e')) {
+			e.preventDefault();
+			createDialogOpen = true;
+			return;
+		}
+
+		// Ctrl+Shift+D : open delete worktree dialog for current worktree
+		if (e.shiftKey && (e.key === 'D' || e.key === 'd')) {
+			e.preventDefault();
+			if ($currentWorktree && !$currentWorktree.isMain) {
+				deleteTarget = $currentWorktree;
+				deleteDialogOpen = true;
+			}
+			return;
+		}
+
 		if (e.shiftKey) return;
+
+		// Ctrl+` : focus the active terminal, or create one if none exist
+		if (e.key === '`') {
+			e.preventDefault();
+			const path = $currentWorktree?.path;
+			if (path && ($terminalSessions[path]?.length ?? 0) === 0) {
+				terminalRef?.createSession();
+			} else {
+				terminalRef?.focusActive();
+			}
+			return;
+		}
+
 		if (count === 0) return;
 
-		// Ctrl+1 through Ctrl+9: switch to positional worktree tab
+		// Ctrl+1-9: switch to positional worktree tab
 		if (e.key >= '1' && e.key <= '9') {
 			const idx = parseInt(e.key) - 1;
 			if (idx < count) {
 				e.preventDefault();
 				handleWorktreeChange(orderedWorktrees[idx].path);
+				requestAnimationFrame(() => restoreFocus());
 			}
 			return;
 		}
@@ -153,17 +229,48 @@
 					? (currentIdx - 1 + count) % count
 					: (currentIdx + 1) % count;
 			handleWorktreeChange(orderedWorktrees[next].path);
+			requestAnimationFrame(() => restoreFocus());
 		}
 	}
 
 	let terminalOpen = $state(true);
 	let createDialogOpen = $state(false);
-	let branchName = $state('');
-	let creating = $state(false);
-	let createError = $state('');
+	let linearSettingsOpen = $state(false);
+
+	async function handleWorktreeCreated(data: { worktreePath: string }) {
+		const listRes = await fetch('/api/worktrees');
+		const allWorktrees: Worktree[] = await listRes.json();
+		worktrees.set(allWorktrees);
+		const newWt = allWorktrees.find((w: Worktree) => w.path === data.worktreePath);
+		if (newWt) {
+			currentWorktree.set(newWt);
+		}
+	}
+
 	let deletingPath = $state<string | null>(null);
 	let deleteTarget = $state<Worktree | null>(null);
 	let deleteDialogOpen = $state(false);
+
+	// Env editor state
+	let envFiles = $state<string[]>([]);
+	let envEditorOpen = $state(false);
+	let envEditorFile = $state('');
+
+	async function loadEnvFiles() {
+		if (!$currentWorktree) return;
+		try {
+			const params = new URLSearchParams({ root: $currentWorktree.path });
+			const res = await fetch(`/api/env-files?${params}`);
+			envFiles = await res.json();
+		} catch {
+			envFiles = [];
+		}
+	}
+
+	function openEnvEditor(file: string) {
+		envEditorFile = file;
+		envEditorOpen = true;
+	}
 
 	const MIN_TERMINAL = 150;
 	const MAX_TERMINAL = 800;
@@ -173,43 +280,6 @@
 			terminalWidth.update((w) => Math.min(MAX_TERMINAL, Math.max(MIN_TERMINAL, w - delta)));
 		} else {
 			terminalHeight.update((h) => Math.min(MAX_TERMINAL, Math.max(MIN_TERMINAL, h - delta)));
-		}
-	}
-
-	async function handleCreateWorktree() {
-		createError = '';
-		if (!branchName.trim()) {
-			createError = 'Branch name is required';
-			return;
-		}
-		creating = true;
-		try {
-			const res = await fetch('/api/worktrees', {
-				method: 'POST',
-				headers: { 'Content-Type': 'application/json' },
-				body: JSON.stringify({ branchName: branchName.trim() }),
-			});
-			const data = await res.json();
-			if (!res.ok) {
-				createError = data.error || 'Failed to create worktree';
-				return;
-			}
-			// Refresh worktree list
-			const listRes = await fetch('/api/worktrees');
-			const allWorktrees: Worktree[] = await listRes.json();
-			worktrees.set(allWorktrees);
-			// Switch to the new worktree
-			const newWt = allWorktrees.find((w: Worktree) => w.path === data.worktreePath);
-			if (newWt) {
-				currentWorktree.set(newWt);
-			}
-			// Reset and close
-			branchName = '';
-			createDialogOpen = false;
-		} catch (e) {
-			createError = e instanceof Error ? e.message : 'An unexpected error occurred';
-		} finally {
-			creating = false;
 		}
 	}
 
@@ -325,46 +395,10 @@
 						</Tabs.Root>
 					{/if}
 
-					<Dialog.Root bind:open={createDialogOpen}>
-						<Dialog.Trigger>
-							{#snippet child({ props })}
-								<Button variant="ghost" size="icon" class="h-7 w-7" {...props}>
-									<PlusIcon class="h-4 w-4" />
-								</Button>
-							{/snippet}
-						</Dialog.Trigger>
-						<Dialog.Content class="sm:max-w-md">
-							<Dialog.Header>
-								<Dialog.Title>New Worktree</Dialog.Title>
-								<Dialog.Description>Create a new git worktree with a new branch.</Dialog.Description>
-							</Dialog.Header>
-							<form
-								class="flex flex-col gap-4"
-								onsubmit={(e) => { e.preventDefault(); handleCreateWorktree(); }}
-							>
-								<div class="flex flex-col gap-2">
-									<label for="branch-name" class="text-sm font-medium">Branch name</label>
-									<Input
-										id="branch-name"
-										placeholder="feature/my-branch"
-										bind:value={branchName}
-										disabled={creating}
-									/>
-									{#if createError}
-										<p class="text-sm text-destructive">{createError}</p>
-									{/if}
-								</div>
-								<Button type="submit" disabled={creating}>
-									{#if creating}
-										<LoaderCircleIcon class="mr-2 h-4 w-4 animate-spin" />
-										Creating...
-									{:else}
-										Create
-									{/if}
-								</Button>
-							</form>
-						</Dialog.Content>
-					</Dialog.Root>
+					<Button variant="ghost" size="icon" class="h-7 w-7" onclick={() => createDialogOpen = true} title="New worktree (Ctrl+Shift+E)">
+						<PlusIcon class="h-4 w-4" />
+					</Button>
+					<Kbd class="hidden sm:inline-flex h-4 min-w-4 text-[10px] opacity-50" title="Ctrl+Shift+E — new worktree">⌃⇧E</Kbd>
 
 					<div class="ml-auto">
 						<DropdownMenu.Root>
@@ -376,6 +410,31 @@
 								{/snippet}
 							</DropdownMenu.Trigger>
 							<DropdownMenu.Content align="end" class="w-48">
+								<DropdownMenu.Item class="gap-2" onclick={() => showGitIgnored.update((v) => !v)}>
+									<EyeIcon class="h-4 w-4" />
+									Show ignored files
+									{#if $showGitIgnored}
+										<span class="ml-auto text-xs text-muted-foreground">&#10003;</span>
+									{/if}
+								</DropdownMenu.Item>
+								<DropdownMenu.Sub>
+									<DropdownMenu.SubTrigger class="gap-2" onclick={loadEnvFiles}>
+										<FileKeyIcon class="h-4 w-4" />
+										Environment
+									</DropdownMenu.SubTrigger>
+									<DropdownMenu.SubContent>
+										{#if envFiles.length === 0}
+											<DropdownMenu.Item disabled>No .env files</DropdownMenu.Item>
+										{:else}
+											{#each envFiles as file}
+												<DropdownMenu.Item class="font-mono text-xs" onclick={() => openEnvEditor(file)}>
+													{file}
+												</DropdownMenu.Item>
+											{/each}
+										{/if}
+									</DropdownMenu.SubContent>
+								</DropdownMenu.Sub>
+								<DropdownMenu.Separator />
 								<DropdownMenu.Sub>
 									<DropdownMenu.SubTrigger>Terminal position</DropdownMenu.SubTrigger>
 									<DropdownMenu.SubContent>
@@ -395,23 +454,30 @@
 										</DropdownMenu.Item>
 									</DropdownMenu.SubContent>
 								</DropdownMenu.Sub>
+								<DropdownMenu.Separator />
+								<DropdownMenu.Item onclick={() => linearSettingsOpen = true}>
+									Linear integration
+									{#if $linearApiKey}
+										<span class="ml-auto text-xs text-muted-foreground">&#10003;</span>
+									{/if}
+								</DropdownMenu.Item>
 							</DropdownMenu.Content>
 						</DropdownMenu.Root>
 					</div>
 				</header>
 				<div class="flex min-h-0 flex-1 {$terminalLayout === 'bottom' ? 'flex-col' : ''}">
 					<div class="min-w-0 flex-1 overflow-hidden">
-						<Editor />
+						<Editor bind:this={editorRef} />
 					</div>
 					{#if terminalOpen}
 						<PanelResizeHandle orientation={$terminalLayout === 'bottom' ? 'horizontal' : 'vertical'} onresize={handleTerminalResize} />
 						{#if $terminalLayout === 'right'}
 							<div class="flex h-full shrink-0 flex-col overflow-hidden" style="width: {$terminalWidth}px">
-								<Terminal />
+								<Terminal bind:this={terminalRef} />
 							</div>
 						{:else}
 							<div class="shrink-0 overflow-hidden" style="height: {$terminalHeight}px">
-								<Terminal />
+								<Terminal bind:this={terminalRef} />
 							</div>
 						{/if}
 					{/if}
@@ -444,3 +510,10 @@
 		</AlertDialog.Footer>
 	</AlertDialog.Content>
 </AlertDialog.Root>
+
+{#if $currentWorktree}
+	<EnvEditor bind:open={envEditorOpen} filePath={envEditorFile} worktreePath={$currentWorktree.path} />
+{/if}
+
+<CreateWorktreeDialog bind:open={createDialogOpen} oncreated={handleWorktreeCreated} />
+<LinearSettings bind:open={linearSettingsOpen} />

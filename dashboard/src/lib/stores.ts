@@ -1,6 +1,22 @@
 import { writable } from 'svelte/store';
 import { browser } from '$app/environment';
 
+function localPersistedWritable<T>(key: string, initial: T) {
+	const stored = browser ? localStorage.getItem(key) : null;
+	const value = stored !== null ? JSON.parse(stored) as T : initial;
+	const store = writable<T>(value);
+	if (browser) {
+		store.subscribe((v) => {
+			if (v === null || v === undefined) {
+				localStorage.removeItem(key);
+			} else {
+				localStorage.setItem(key, JSON.stringify(v));
+			}
+		});
+	}
+	return store;
+}
+
 function persistedWritable<T>(key: string, initial: T) {
 	const stored = browser ? sessionStorage.getItem(key) : null;
 	const value = stored !== null ? JSON.parse(stored) as T : initial;
@@ -55,6 +71,11 @@ export type TerminalLayout = 'right' | 'bottom';
 export const terminalLayout = persistedWritable<TerminalLayout>('dashboard:terminalLayout', 'right');
 export const worktreeOrder = persistedWritable<string[]>('dashboard:worktreeOrder', []);
 export const previousWorktreePath = writable<string | null>(null);
+export const showGitIgnored = persistedWritable<boolean>('dashboard:showGitIgnored', false);
+export const linearApiKey = localPersistedWritable<string | null>('dashboard:linearApiKey', null);
+
+/** Which panel was last focused per worktree path: 'editor' or 'terminal' */
+export const focusedPanel = writable<Record<string, 'editor' | 'terminal'>>({});
 
 export type InlineEditAction =
 	| { type: 'newFile'; parentPath: string }

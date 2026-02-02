@@ -1,13 +1,24 @@
 <script lang="ts">
 	import { onMount } from 'svelte';
 
-	let { sessionId, visible, ontitlechange }: { sessionId: string; visible: boolean; ontitlechange?: (title: string) => void } = $props();
+	let { sessionId, visible, ontitlechange, onnotification, onfocus }: {
+		sessionId: string;
+		visible: boolean;
+		ontitlechange?: (title: string) => void;
+		onnotification?: (data: { title?: string; body: string }) => void;
+		onfocus?: () => void;
+	} = $props();
 
 	let container: HTMLDivElement;
-	let term: any;
-	let fitAddon: any;
+	let term = $state<any>(null);
+	let fitAddon = $state<any>(null);
 	let ws: WebSocket | null = null;
 	let resizeObserver: ResizeObserver | null = null;
+	let oscDisposables: { dispose: () => void }[] = [];
+
+	export function focus() {
+		term?.focus();
+	}
 
 	onMount(() => {
 		initTerminal();
@@ -57,6 +68,51 @@
 			ontitlechange?.(title);
 		});
 
+		// Bell (BEL character \x07)
+		oscDisposables.push(
+			term.onBell(() => {
+				onnotification?.({ body: 'Bell' });
+			})
+		);
+
+		// iTerm2 notifications: OSC 9 ; message ST
+		oscDisposables.push(
+			term.parser.registerOscHandler(9, (data: string) => {
+				onnotification?.({ body: data });
+				return true;
+			})
+		);
+
+		// URxvt notifications: OSC 777 ; notify ; title ; body ST
+		oscDisposables.push(
+			term.parser.registerOscHandler(777, (data: string) => {
+				const parts = data.split(';');
+				if (parts[0] === 'notify' && parts.length >= 3) {
+					onnotification?.({ title: parts[1], body: parts.slice(2).join(';') });
+				}
+				return true;
+			})
+		);
+
+		// Kitty notifications: OSC 99 ; metadata ; message ST
+		oscDisposables.push(
+			term.parser.registerOscHandler(99, (data: string) => {
+				const idx = data.indexOf(';');
+				if (idx !== -1) {
+					onnotification?.({ body: data.slice(idx + 1) });
+				} else {
+					onnotification?.({ body: data });
+				}
+				return true;
+			})
+		);
+
+		// Track when xterm's textarea gets focus
+		const textarea = container.querySelector('textarea');
+		if (textarea) {
+			textarea.addEventListener('focus', () => onfocus?.());
+		}
+
 		term.onData((data: string) => {
 			if (ws?.readyState === WebSocket.OPEN) {
 				ws.send(data);
@@ -71,19 +127,29 @@
 			}
 		});
 		resizeObserver.observe(container);
+
+		// Focus immediately if this instance is already visible at init time
+		if (visible) {
+			term.focus();
+		}
 	}
 
 	function cleanup() {
+		for (const d of oscDisposables) d.dispose();
+		oscDisposables = [];
 		resizeObserver?.disconnect();
 		ws?.close();
 		term?.dispose();
 	}
 
-	// Re-fit when becoming visible (size may have changed while hidden)
+	// Re-fit and focus when becoming visible (size may have changed while hidden)
 	$effect(() => {
 		if (visible && fitAddon) {
 			// Tick delay so the container has its real dimensions
-			requestAnimationFrame(() => fitAddon?.fit());
+			requestAnimationFrame(() => {
+				fitAddon?.fit();
+				term?.focus();
+			});
 		}
 	});
 </script>

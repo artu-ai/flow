@@ -1,5 +1,6 @@
 <script lang="ts">
 	import '../app.css';
+	import { Toaster } from '$lib/components/ui/sonner';
 	import { currentWorktree, worktrees, selectedWorktreePath } from '$lib/stores';
 	import type { Worktree } from '$lib/stores';
 	import { onMount } from 'svelte';
@@ -29,6 +30,7 @@
 	});
 </script>
 
+<Toaster position="top-right" />
 <div class="flex h-screen flex-col overflow-hidden">
 	{@render children()}
 </div>

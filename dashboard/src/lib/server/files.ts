@@ -45,15 +45,17 @@ async function getIgnoredNames(repoRoot: string, dir: string, names: string[]): 
 /**
  * List directory contents, excluding gitignored files.
  */
-export async function listDirectory(root: string, dir: string): Promise<FileEntry[]> {
+export async function listDirectory(root: string, dir: string, options?: { showGitIgnored?: boolean }): Promise<FileEntry[]> {
 	const fullPath = validatePath(root, dir);
 	const entries = await readdir(fullPath, { withFileTypes: true });
 
-	// Filter dotfiles first
-	const visible = entries.filter((e) => !e.name.startsWith('.') || e.name === '.env');
+	// Filter dotfiles first (allow all .env* files)
+	const visible = entries.filter((e) => !e.name.startsWith('.') || e.name.startsWith('.env'));
 
-	// Filter gitignored files
-	const ignored = await getIgnoredNames(root, dir, visible.map((e) => e.name));
+	// Filter gitignored files (skip when showGitIgnored is enabled)
+	const ignored = options?.showGitIgnored
+		? new Set<string>()
+		: await getIgnoredNames(root, dir, visible.map((e) => e.name));
 
 	const results: FileEntry[] = [];
 	for (const entry of visible) {

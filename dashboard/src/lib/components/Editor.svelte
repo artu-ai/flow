@@ -1,5 +1,5 @@
 <script lang="ts">
-	import { currentWorktree, currentFile, activeView, diffBase, hasUnsavedChanges } from '$lib/stores';
+	import { currentWorktree, currentFile, activeView, diffBase, hasUnsavedChanges, focusedPanel } from '$lib/stores';
 	import { onMount } from 'svelte';
 	import { Badge } from '$lib/components/ui/badge';
 	import { Button } from '$lib/components/ui/button';
@@ -56,6 +56,18 @@
 		editor.onDidChangeModelContent(() => {
 			hasUnsavedChanges.set(true);
 		});
+
+		editor.onDidFocusEditorWidget(() => {
+			const path = $currentWorktree?.path;
+			if (path) {
+				focusedPanel.update((s) => ({ ...s, [path]: 'editor' }));
+			}
+		});
+	}
+
+	/** Focus the Monaco editor. Called by parent on worktree switch. */
+	export function focus() {
+		editor?.focus();
 	}
 
 	async function loadFile(worktreePath: string, filePath: string) {

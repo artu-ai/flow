@@ -1,7 +1,7 @@
 <script lang="ts">
 	import * as Sidebar from '$lib/components/ui/sidebar/index.js';
 	import * as ContextMenu from '$lib/components/ui/context-menu/index.js';
-	import { currentWorktree, currentFile, activeView, gitFileStatuses, statusColor, inlineEdit } from '$lib/stores';
+	import { currentWorktree, currentFile, activeView, gitFileStatuses, statusColor, inlineEdit, showGitIgnored } from '$lib/stores';
 	import type { FileEntry, GitFileStatus, InlineEditAction } from '$lib/stores';
 	import LazyDir from './LazyDir.svelte';
 	import FileTypeIcon from './FileTypeIcon.svelte';
@@ -13,6 +13,7 @@
 	async function loadRootEntries() {
 		if (!$currentWorktree) return;
 		const params = new URLSearchParams({ root: $currentWorktree.path, dir: '.' });
+		if ($showGitIgnored) params.set('showGitIgnored', '1');
 		const res = await fetch(`/api/files?${params}`);
 		rootEntries = await res.json();
 	}
@@ -43,6 +44,8 @@
 	}
 
 	$effect(() => {
+		// Re-fetch when worktree or showGitIgnored changes
+		const _ignored = $showGitIgnored;
 		if ($currentWorktree) {
 			loadRootEntries();
 			loadGitStatuses();

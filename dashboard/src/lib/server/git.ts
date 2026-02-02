@@ -1,6 +1,6 @@
 import { execFile } from 'node:child_process';
 import { promisify } from 'node:util';
-import { copyFile, access } from 'node:fs/promises';
+import { copyFile, readdir } from 'node:fs/promises';
 import { join, dirname, basename } from 'node:path';
 
 const execFileAsync = promisify(execFile);
@@ -165,16 +165,26 @@ export async function getBranchDiffFiles(worktreePath: string): Promise<BranchDi
 }
 
 /**
- * Create a new git worktree with a new branch, push upstream, and copy .env if present.
+ * Create a new git worktree with a new branch, push upstream, and copy .env* files from source.
  */
-export async function createWorktree(repoPath: string, branchName: string): Promise<{ worktree: Worktree; worktreePath: string }> {
+export async function createWorktree(
+	repoPath: string,
+	branchName: string,
+	sourceBranch?: string,
+	sourceWorktreePath?: string,
+): Promise<{ worktree: Worktree; worktreePath: string }> {
 	const { stdout: repoRoot } = await execFileAsync('git', ['rev-parse', '--show-toplevel'], { cwd: repoPath });
 	const root = repoRoot.trim();
 	const dirSuffix = branchName.replace(/\//g, '-');
 	const worktreePath = join(dirname(root), basename(root) + '-' + dirSuffix);
 
+	const args = ['worktree', 'add', worktreePath, '-b', branchName];
+	if (sourceBranch) {
+		args.push(sourceBranch);
+	}
+
 	try {
-		await execFileAsync('git', ['worktree', 'add', worktreePath, '-b', branchName], {
+		await execFileAsync('git', args, {
 			cwd: repoPath,
 		});
 	} catch (e: unknown) {
@@ -189,13 +199,16 @@ export async function createWorktree(repoPath: string, branchName: string): Prom
 		// Push failure is not fatal — worktree still works locally
 	}
 
-	// Copy .env if it exists in the source repo
-	const envSrc = join(repoPath, '.env');
+	// Copy all .env* files from the source worktree (or repo root)
+	const envSourceDir = sourceWorktreePath || repoPath;
 	try {
-		await access(envSrc);
-		await copyFile(envSrc, join(worktreePath, '.env'));
+		const entries = await readdir(envSourceDir);
+		const envFiles = entries.filter((name) => /^\.env/.test(name));
+		await Promise.all(
+			envFiles.map((name) => copyFile(join(envSourceDir, name), join(worktreePath, name))),
+		);
 	} catch {
-		// No .env to copy
+		// Non-fatal — source dir may not exist or have no .env files
 	}
 
 	const allWorktrees = await listWorktrees(repoPath);

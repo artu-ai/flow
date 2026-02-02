@@ -1,11 +1,38 @@
 <script lang="ts">
-	import { currentWorktree, terminalSessions, activeTerminalSession } from '$lib/stores';
+	import { currentWorktree, worktrees, terminalSessions, activeTerminalSession, focusedPanel } from '$lib/stores';
 	import { onMount } from 'svelte';
+	import { toast } from 'svelte-sonner';
 	import { Button } from '$lib/components/ui/button';
+	import { Kbd } from '$lib/components/ui/kbd';
 	import TerminalSquareIcon from '@lucide/svelte/icons/terminal';
 	import PlusIcon from '@lucide/svelte/icons/plus';
 	import XIcon from '@lucide/svelte/icons/x';
 	import TerminalInstance from './TerminalInstance.svelte';
+
+	// Refs to TerminalInstance components by sessionId
+	let instanceRefs: Record<string, TerminalInstance> = {};
+
+	/** Focus the currently active terminal instance. Called by parent on worktree switch. */
+	export function focusActive() {
+		const path = $currentWorktree?.path;
+		if (!path) return;
+		const sid = $activeTerminalSession[path];
+		if (sid && instanceRefs[sid]) {
+			instanceRefs[sid].focus();
+		}
+	}
+
+	/** Close the currently active terminal session. */
+	export function closeActive() {
+		const path = $currentWorktree?.path;
+		if (!path) return;
+		const sid = $activeTerminalSession[path];
+		if (sid) closeSession(sid);
+	}
+
+	function handleTerminalFocus(worktreePath: string) {
+		focusedPanel.update((s) => ({ ...s, [worktreePath]: 'terminal' }));
+	}
 
 	// Per-worktree label counter so new tabs get incrementing numbers
 	let labelCounters: Record<string, number> = {};
@@ -20,6 +47,9 @@
 	let sessionLabels: Record<string, string> = $state({});
 	// Sessions that were manually renamed (don't override with escape sequence titles)
 	let manuallyRenamed: Set<string> = new Set();
+	// Sessions with unread notifications (cleared when navigated to)
+	let notifiedSessions: Set<string> = $state(new Set());
+
 	// Inline rename state
 	let renamingSessionId = $state<string | null>(null);
 	let renameValue = $state('');
@@ -76,7 +106,7 @@
 
 	let error: string | null = $state(null);
 
-	async function createSession() {
+	export async function createSession() {
 		if (!$currentWorktree) return;
 		error = null;
 
@@ -103,6 +133,8 @@
 					...s,
 					[path]: data.id,
 				}));
+				// Focus the newly created terminal once it mounts
+				requestAnimationFrame(() => instanceRefs[data.id]?.focus());
 			}
 		} catch (e) {
 			error = String(e);
@@ -139,9 +171,12 @@
 			}
 		}
 
-		// Clean up label and rename tracking
+		// Clean up label, rename, and notification tracking
 		delete sessionLabels[sessionId];
 		manuallyRenamed.delete(sessionId);
+		if (notifiedSessions.has(sessionId)) {
+			notifiedSessions = new Set([...notifiedSessions].filter((id) => id !== sessionId));
+		}
 
 		// Delete server-side session
 		fetch('/api/terminal/sessions', {
@@ -157,7 +192,44 @@
 			...s,
 			[$currentWorktree!.path]: sessionId,
 		}));
+		// Focus the newly active terminal after it becomes visible
+		requestAnimationFrame(() => instanceRefs[sessionId]?.focus());
 	}
+
+	function navigateToTerminal(sessionId: string, worktreePath: string) {
+		// Switch worktree if needed
+		if ($currentWorktree?.path !== worktreePath) {
+			const wt = $worktrees.find((w) => w.path === worktreePath);
+			if (wt) currentWorktree.set(wt);
+		}
+		// Switch to the terminal tab
+		activeTerminalSession.update((s) => ({ ...s, [worktreePath]: sessionId }));
+	}
+
+	function handleNotification(sessionId: string, worktreePath: string, { title, body }: { title?: string; body: string }) {
+		// Don't show toast if this terminal is already active and visible
+		if (sessionId === activeSession && worktreePath === $currentWorktree?.path) return;
+		// Don't fire duplicate toasts — wait until the user navigates to this terminal
+		if (notifiedSessions.has(sessionId)) return;
+
+		notifiedSessions = new Set([...notifiedSessions, sessionId]);
+
+		const label = sessionLabels[sessionId] ?? 'Terminal';
+		toast(title ?? label, {
+			description: body,
+			action: {
+				label: 'Go to terminal',
+				onClick: () => navigateToTerminal(sessionId, worktreePath),
+			},
+		});
+	}
+
+	// Clear notification indicator when a session becomes active
+	$effect(() => {
+		if (activeSession && notifiedSessions.has(activeSession)) {
+			notifiedSessions = new Set([...notifiedSessions].filter((id) => id !== activeSession));
+		}
+	});
 
 	// Drag-and-drop state for terminal tabs
 	let dragIdx = $state<number | null>(null);
@@ -240,6 +312,9 @@
 	{:else}
 		<!-- Tab bar -->
 		<div class="flex h-8 shrink-0 items-center border-b border-border bg-muted/30 px-1 gap-0.5 overflow-x-auto">
+			{#if currentSessions.length > 1}
+				<Kbd class="h-4 min-w-4 text-[10px] opacity-50" title="Ctrl+Shift+[ — previous terminal">⌃⇧[</Kbd>
+			{/if}
 			{#each currentSessions as sessionId, i (sessionId)}
 				<button
 					class="group flex h-6 items-center gap-1 rounded px-2 text-xs whitespace-nowrap transition-colors
@@ -269,12 +344,18 @@
 							onclick={(e: MouseEvent) => e.stopPropagation()}
 						/>
 					{:else}
+						{#if notifiedSessions.has(sessionId)}
+							<span class="size-1.5 rounded-full bg-blue-400"></span>
+						{/if}
 						{sessionLabels[sessionId] ?? `Terminal ${i + 1}`}
+						{#if i < 9}
+							<Kbd class="ml-0.5 h-4 min-w-4 text-[10px] opacity-40">⌃⇧{i + 1}</Kbd>
+						{/if}
 					{/if}
 					<span
 						role="button"
 						tabindex="-1"
-						class="ml-0.5 rounded-sm opacity-0 group-hover:opacity-60 hover:!opacity-100 hover:bg-muted-foreground/20"
+						class="ml-0.5 rounded-sm opacity-60 hover:opacity-100 hover:bg-muted-foreground/20"
 						onclick={(e: MouseEvent) => { e.stopPropagation(); closeSession(sessionId); }}
 						onkeydown={(e: KeyboardEvent) => { if (e.key === 'Enter') { e.stopPropagation(); closeSession(sessionId); } }}
 					>
@@ -282,13 +363,17 @@
 					</span>
 				</button>
 			{/each}
+			{#if currentSessions.length > 1}
+				<Kbd class="h-4 min-w-4 text-[10px] opacity-50" title="Ctrl+Shift+] — next terminal">⌃⇧]</Kbd>
+			{/if}
 			<button
 				class="flex h-6 w-6 items-center justify-center rounded text-muted-foreground hover:text-foreground hover:bg-muted"
 				onclick={createSession}
-				title="New terminal"
+				title="New terminal (Ctrl+Shift+T)"
 			>
 				<PlusIcon class="h-3.5 w-3.5" />
 			</button>
+			<Kbd class="h-4 min-w-4 text-[10px] opacity-50" title="Ctrl+Shift+T — new terminal">⌃⇧T</Kbd>
 		</div>
 		{#if error}
 			<p class="text-xs text-destructive px-2 py-1">{error}</p>
@@ -296,9 +381,12 @@
 	{/if}
 	{#each allSessions as { worktreePath, sessionId } (sessionId)}
 		<TerminalInstance
+			bind:this={instanceRefs[sessionId]}
 			{sessionId}
 			visible={worktreePath === $currentWorktree?.path && sessionId === activeSession}
 			ontitlechange={(title) => handleTitleChange(sessionId, title)}
+			onnotification={(data) => handleNotification(sessionId, worktreePath, data)}
+			onfocus={() => handleTerminalFocus(worktreePath)}
 		/>
 	{/each}
 </div>
