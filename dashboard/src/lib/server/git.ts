@@ -1,5 +1,7 @@
 import { execFile } from 'node:child_process';
 import { promisify } from 'node:util';
+import { copyFile, access } from 'node:fs/promises';
+import { join, dirname, basename } from 'node:path';
 
 const execFileAsync = promisify(execFile);
 
@@ -159,5 +161,79 @@ export async function getBranchDiffFiles(worktreePath: string): Promise<BranchDi
 		});
 	} catch {
 		return [];
+	}
+}
+
+/**
+ * Create a new git worktree with a new branch, push upstream, and copy .env if present.
+ */
+export async function createWorktree(repoPath: string, branchName: string): Promise<{ worktree: Worktree; worktreePath: string }> {
+	const { stdout: repoRoot } = await execFileAsync('git', ['rev-parse', '--show-toplevel'], { cwd: repoPath });
+	const root = repoRoot.trim();
+	const dirSuffix = branchName.replace(/\//g, '-');
+	const worktreePath = join(dirname(root), basename(root) + '-' + dirSuffix);
+
+	try {
+		await execFileAsync('git', ['worktree', 'add', worktreePath, '-b', branchName], {
+			cwd: repoPath,
+		});
+	} catch (e: unknown) {
+		const stderr = e instanceof Error && 'stderr' in e ? (e as { stderr: string }).stderr : String(e);
+		throw new Error(stderr.trim() || 'Failed to create worktree');
+	}
+
+	// Push upstream (non-fatal if it fails)
+	try {
+		await execFileAsync('git', ['-C', worktreePath, 'push', '-u', 'origin', branchName]);
+	} catch {
+		// Push failure is not fatal — worktree still works locally
+	}
+
+	// Copy .env if it exists in the source repo
+	const envSrc = join(repoPath, '.env');
+	try {
+		await access(envSrc);
+		await copyFile(envSrc, join(worktreePath, '.env'));
+	} catch {
+		// No .env to copy
+	}
+
+	const allWorktrees = await listWorktrees(repoPath);
+	const created = allWorktrees.find((w) => w.path === worktreePath);
+	if (!created) {
+		throw new Error('Worktree was created but could not be found in the list');
+	}
+
+	return { worktree: created, worktreePath };
+}
+
+/**
+ * Remove a git worktree and optionally delete its branch.
+ */
+export async function removeWorktree(repoPath: string, worktreePath: string): Promise<void> {
+	// Get the branch name before removing so we can clean it up
+	const allWorktrees = await listWorktrees(repoPath);
+	const wt = allWorktrees.find((w) => w.path === worktreePath);
+	if (!wt) {
+		throw new Error('Worktree not found');
+	}
+	if (wt.isMain) {
+		throw new Error('Cannot remove the main worktree');
+	}
+
+	try {
+		await execFileAsync('git', ['worktree', 'remove', worktreePath, '--force'], {
+			cwd: repoPath,
+		});
+	} catch (e: unknown) {
+		const stderr = e instanceof Error && 'stderr' in e ? (e as { stderr: string }).stderr : String(e);
+		throw new Error(stderr.trim() || 'Failed to remove worktree');
+	}
+
+	// Delete the branch (non-fatal)
+	try {
+		await execFileAsync('git', ['branch', '-D', wt.branch], { cwd: repoPath });
+	} catch {
+		// Branch may already be gone or be checked out elsewhere
 	}
 }
