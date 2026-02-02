@@ -6,11 +6,13 @@
 	import FolderIcon from '@lucide/svelte/icons/folder';
 	import { currentFile, activeView, gitFileStatuses, statusColor, folderStatus, inlineEdit, showGitIgnored } from '$lib/stores';
 	import type { FileEntry, GitFileStatus, InlineEditAction } from '$lib/stores';
+	import type { FileChange } from '$lib/fileWatcher';
+	import type { Readable } from 'svelte/store';
 	import Self from './LazyDir.svelte';
 	import FileTypeIcon from './FileTypeIcon.svelte';
 	import InlineInput from './InlineInput.svelte';
 
-	let { name, path, root, onrefresh }: { name: string; path: string; root: string; onrefresh?: () => void } = $props();
+	let { name, path, root, changes, onrefresh }: { name: string; path: string; root: string; changes?: Readable<FileChange>; onrefresh?: () => void } = $props();
 
 	let children: FileEntry[] | null = $state(null);
 	let open = $state(false);
@@ -40,6 +42,13 @@
 		open = isOpen;
 		if (isOpen && children === null) loadChildren();
 	}
+
+	$effect(() => {
+		const c = changes ? $changes : null;
+		if (c && c.tick > 0 && c.dir === path && children !== null) {
+			forceLoadChildren();
+		}
+	});
 
 	function selectFile(fileName: string) {
 		const filePath = path === '.' ? fileName : `${path}/${fileName}`;
@@ -243,7 +252,7 @@
 				{:else}
 					{#each children as entry (entry.name)}
 						{#if entry.type === 'directory'}
-							<Self name={entry.name} path={childPath(entry.name)} {root} onrefresh={forceLoadChildren} />
+							<Self name={entry.name} path={childPath(entry.name)} {root} {changes} onrefresh={forceLoadChildren} />
 						{:else}
 							{@const filePath = childPath(entry.name)}
 							{#if isRenamingChild(filePath)}

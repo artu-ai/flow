@@ -3,12 +3,16 @@
 	import * as ContextMenu from '$lib/components/ui/context-menu/index.js';
 	import { currentFile, activeView, gitFileStatuses, statusColor, inlineEdit, showGitIgnored } from '$lib/stores';
 	import type { FileEntry, GitFileStatus, InlineEditAction } from '$lib/stores';
+	import { createFileWatcher, type FileChange } from '$lib/fileWatcher';
+	import { writable, type Readable } from 'svelte/store';
 	import LazyDir from './LazyDir.svelte';
 	import FileTypeIcon from './FileTypeIcon.svelte';
 	import FolderIcon from '@lucide/svelte/icons/folder';
 	import InlineInput from './InlineInput.svelte';
 
 	let { worktreePath }: { worktreePath: string } = $props();
+
+	const changes = writable<FileChange>({ dir: '', tick: 0 });
 
 	let rootEntries: FileEntry[] = $state([]);
 
@@ -55,6 +59,25 @@
 		const _ignored = $showGitIgnored;
 		loadRootEntries();
 		loadGitStatuses();
+	});
+
+	$effect(() => {
+		const watcher = createFileWatcher(worktreePath);
+		const unsub = watcher.changes.subscribe((v) => changes.set(v));
+		return () => {
+			unsub();
+			watcher.destroy();
+		};
+	});
+
+	$effect(() => {
+		const c = $changes;
+		if (c.tick > 0) {
+			loadGitStatuses();
+			if (c.dir === '.') {
+				loadRootEntries();
+			}
+		}
 	});
 
 	// Inline edit state
@@ -165,7 +188,7 @@
 					{/if}
 					{#each rootEntries as entry (entry.name)}
 						{#if entry.type === 'directory'}
-							<LazyDir name={entry.name} path={entry.name} root={worktreePath} onrefresh={refreshRoot} />
+							<LazyDir name={entry.name} path={entry.name} root={worktreePath} {changes} onrefresh={refreshRoot} />
 						{:else if isRenamingEntry(entry.name)}
 							<li class="flex items-center gap-2 px-2 py-0.5">
 								<FileTypeIcon filename={entry.name} />

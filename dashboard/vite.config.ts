@@ -62,8 +62,43 @@ function terminalPlugin(): Plugin {
 	};
 }
 
+function fileWatcherPlugin(): Plugin {
+	return {
+		name: 'file-watcher-websocket',
+		configureServer(server) {
+			import('./file-watcher.js').then(({ fileWatcher }) => {
+				import('ws').then(({ WebSocketServer }) => {
+					const wss = new WebSocketServer({ noServer: true });
+
+					server.httpServer?.on(
+						'upgrade',
+						(req: IncomingMessage, socket: Duplex, head: Buffer) => {
+							const url = new URL(req.url || '/', `http://${req.headers.host}`);
+
+							if (url.pathname !== '/watch') return;
+
+							const root = url.searchParams.get('root');
+							if (!root) {
+								socket.destroy();
+								return;
+							}
+
+							wss.handleUpgrade(req, socket, head, (ws) => {
+								fileWatcher.subscribe(root, ws);
+								ws.on('close', () => {
+									fileWatcher.unsubscribe(root, ws);
+								});
+							});
+						}
+					);
+				});
+			});
+		},
+	};
+}
+
 export default defineConfig({
-	plugins: [sveltekit(), terminalPlugin()],
+	plugins: [sveltekit(), terminalPlugin(), fileWatcherPlugin()],
 	server: {
 		port: 3420,
 	},

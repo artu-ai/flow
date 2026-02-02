@@ -2,6 +2,7 @@ import { createServer } from 'node:http';
 import { handler } from './build/handler.js';
 import { WebSocketServer } from 'ws';
 import { ptyManager } from './pty-manager.js';
+import { fileWatcher } from './file-watcher.js';
 
 const PORT = parseInt(process.env.PORT || '3420', 10);
 const HOST = process.env.HOST || '127.0.0.1';
@@ -9,19 +10,35 @@ const HOST = process.env.HOST || '127.0.0.1';
 const server = createServer(handler);
 
 const wss = new WebSocketServer({ noServer: true });
+const watchWss = new WebSocketServer({ noServer: true });
 
 server.on('upgrade', (req, socket, head) => {
 	const url = new URL(req.url || '/', `http://${req.headers.host}`);
-	const match = url.pathname.match(/^\/terminal\/(.+)$/);
 
-	if (!match) {
-		socket.destroy();
+	const terminalMatch = url.pathname.match(/^\/terminal\/(.+)$/);
+	if (terminalMatch) {
+		wss.handleUpgrade(req, socket, head, (ws) => {
+			wss.emit('connection', ws, req, terminalMatch[1]);
+		});
 		return;
 	}
 
-	wss.handleUpgrade(req, socket, head, (ws) => {
-		wss.emit('connection', ws, req, match[1]);
-	});
+	if (url.pathname === '/watch') {
+		const root = url.searchParams.get('root');
+		if (!root) {
+			socket.destroy();
+			return;
+		}
+		watchWss.handleUpgrade(req, socket, head, (ws) => {
+			fileWatcher.subscribe(root, ws);
+			ws.on('close', () => {
+				fileWatcher.unsubscribe(root, ws);
+			});
+		});
+		return;
+	}
+
+	socket.destroy();
 });
 
 wss.on('connection', (ws, _req, sessionId) => {
@@ -62,7 +79,9 @@ wss.on('connection', (ws, _req, sessionId) => {
 function shutdown() {
 	console.log('Shutting down...');
 	ptyManager.destroyAll();
+	fileWatcher.destroyAll();
 	wss.close();
+	watchWss.close();
 	server.close(() => {
 		process.exit(0);
 	});
