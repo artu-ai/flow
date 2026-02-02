@@ -42,7 +42,14 @@
 	});
 
 	async function initMonaco() {
+		const { setupMonacoWorkers } = await import('$lib/monaco-workers');
+		setupMonacoWorkers();
+
 		monaco = await import('monaco-editor');
+
+		// Disable Monaco's built-in TS/JS diagnostics — the dashboard uses its own linter integration
+		monaco.languages.typescript.typescriptDefaults.setDiagnosticsOptions({ noSemanticValidation: true, noSyntaxValidation: true });
+		monaco.languages.typescript.javascriptDefaults.setDiagnosticsOptions({ noSemanticValidation: true, noSyntaxValidation: true });
 
 		monaco.editor.defineTheme('dashboard-dark', {
 			base: 'vs-dark',
@@ -100,6 +107,8 @@
 					? cfg.ollama
 					: cfg.claude;
 
+				if (token.isCancellationRequested) return { items: [] };
+
 				const controller = new AbortController();
 				token.onCancellationRequested(() => controller.abort());
 
@@ -115,7 +124,10 @@
 						}),
 						signal: controller.signal,
 					});
-					if (!res.ok) return { items: [] };
+					if (!res.ok) {
+						console.error('[completion] API error', res.status, await res.text());
+						return { items: [] };
+					}
 					const data = await res.json();
 					if (!data.text) return { items: [] };
 
@@ -132,7 +144,8 @@
 							},
 						],
 					};
-				} catch {
+				} catch (e) {
+					console.error('[completion]', e);
 					return { items: [] };
 				} finally {
 					completionLoading = false;

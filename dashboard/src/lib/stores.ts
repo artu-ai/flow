@@ -105,7 +105,7 @@ export const completionConfig = localPersistedWritable<CompletionConfig>(
 	{
 		activeProvider: null,
 		ollama: { url: 'http://localhost:11434', model: '' },
-		claude: { apiKey: '', model: 'claude-haiku-4-5-20241022' },
+		claude: { apiKey: '', model: 'claude-3-5-haiku-20241022' },
 	}
 );
 
