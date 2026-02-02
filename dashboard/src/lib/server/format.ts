@@ -3,13 +3,16 @@ import { resolve, join, extname } from 'node:path';
 import { execFile, hasBiomeConfig, hasRuff, findConfigDir } from './toolchain';
 
 let biomeInstance: any = null;
+let biomeReady: Promise<any> | null = null;
 
-function getBiome() {
-	if (!biomeInstance) {
-		const { Biome } = require('@biomejs/js-api/nodejs');
-		biomeInstance = new Biome();
+function getBiome(): Promise<any> {
+	if (!biomeReady) {
+		biomeReady = import('@biomejs/js-api/nodejs').then(({ Biome }) => {
+			biomeInstance = new Biome();
+			return biomeInstance;
+		});
 	}
-	return biomeInstance;
+	return biomeReady;
 }
 
 const biomeProjects = new Map<string, { projectKey: number }>();
@@ -18,7 +21,7 @@ async function getBiomeProject(configDir: string): Promise<{ projectKey: number 
 	const cached = biomeProjects.get(configDir);
 	if (cached) return cached;
 
-	const biome = getBiome();
+	const biome = await getBiome();
 	const { projectKey } = biome.workspace.openProject({ path: configDir, openUninitialized: true });
 
 	for (const name of ['biome.json', 'biome.jsonc']) {
@@ -39,8 +42,8 @@ async function getBiomeProject(configDir: string): Promise<{ projectKey: number 
 	return entry;
 }
 
-function biomeSupportsFormat(projectKey: number, filePath: string): boolean {
-	const biome = getBiome();
+async function biomeSupportsFormat(projectKey: number, filePath: string): Promise<boolean> {
+	const biome = await getBiome();
 	try {
 		const { featuresSupported } = biome.workspace.fileFeatures({ projectKey, path: filePath, features: ['format'] });
 		return featuresSupported.format === 'supported';
@@ -63,8 +66,8 @@ export async function formatContent(
 		if (configDir) {
 			const { projectKey } = await getBiomeProject(configDir);
 
-			if (biomeSupportsFormat(projectKey, filePath)) {
-				const biome = getBiome();
+			if (await biomeSupportsFormat(projectKey, filePath)) {
+				const biome = await getBiome();
 				biome.workspace.openFile({
 					projectKey,
 					path: filePath,
@@ -87,7 +90,8 @@ export async function formatContent(
 		}
 
 		return { formatted: false };
-	} catch {
+	} catch (e) {
+		console.error('[format]', e);
 		biomeProjects.delete(root);
 		return { formatted: false };
 	}
