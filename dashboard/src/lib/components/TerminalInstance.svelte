@@ -1,7 +1,7 @@
 <script lang="ts">
 	import { onMount } from 'svelte';
 
-	let { sessionId, visible }: { sessionId: string; visible: boolean } = $props();
+	let { sessionId, visible, ontitlechange }: { sessionId: string; visible: boolean; ontitlechange?: (title: string) => void } = $props();
 
 	let container: HTMLDivElement;
 	let term: any;
@@ -52,6 +52,10 @@
 		ws.onclose = () => {
 			term?.write('\r\n\x1b[31m[Connection closed]\x1b[0m\r\n');
 		};
+
+		term.onTitleChange((title: string) => {
+			ontitlechange?.(title);
+		});
 
 		term.onData((data: string) => {
 			if (ws?.readyState === WebSocket.OPEN) {

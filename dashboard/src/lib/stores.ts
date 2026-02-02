@@ -42,8 +42,10 @@ export const currentFile = persistedWritable<string | null>('dashboard:currentFi
 export const activeView = persistedWritable<ViewTab>('dashboard:activeView', 'editor');
 export const diffBase = writable<DiffBase>('head');
 export const worktrees = writable<Worktree[]>([]);
-/** Maps worktree path → terminal session ID so each worktree keeps its own session. */
-export const terminalSessions = writable<Record<string, string>>({});
+/** Maps worktree path → array of terminal session IDs (order = tab order). */
+export const terminalSessions = writable<Record<string, string[]>>({});
+/** Maps worktree path → currently active terminal session ID. */
+export const activeTerminalSession = writable<Record<string, string>>({});
 export const hasUnsavedChanges = writable<boolean>(false);
 export const selectedWorktreePath = persistedWritable<string | null>('dashboard:worktreePath', null);
 export const sidebarWidth = persistedWritable<number>('dashboard:sidebarWidth', 256);

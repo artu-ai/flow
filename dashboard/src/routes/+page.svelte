@@ -8,8 +8,8 @@
 	import * as DropdownMenu from '$lib/components/ui/dropdown-menu';
 	import { Button } from '$lib/components/ui/button';
 	import { Input } from '$lib/components/ui/input';
-	import { currentWorktree, worktrees, terminalSessions, sidebarWidth, terminalWidth, terminalHeight, terminalLayout, hasUnsavedChanges, worktreeOrder, previousWorktreePath } from '$lib/stores';
-	import type { Worktree, TerminalLayout } from '$lib/stores';
+	import { currentWorktree, worktrees, terminalSessions, activeTerminalSession, sidebarWidth, terminalWidth, terminalHeight, terminalLayout, hasUnsavedChanges, worktreeOrder, previousWorktreePath } from '$lib/stores';
+	import type { Worktree } from '$lib/stores';
 	import Editor from '$lib/components/Editor.svelte';
 	import Terminal from '$lib/components/Terminal.svelte';
 	import PanelResizeHandle from '$lib/components/PanelResizeHandle.svelte';
@@ -23,7 +23,7 @@
 
 	onMount(() => {
 		function onBeforeUnload(e: BeforeUnloadEvent) {
-			if (Object.keys($terminalSessions).length > 0 || $hasUnsavedChanges) {
+			if (Object.values($terminalSessions).some((ids) => ids.length > 0) || $hasUnsavedChanges) {
 				e.preventDefault();
 			}
 		}
@@ -106,11 +106,31 @@
 	}
 
 	function handleKeydown(e: KeyboardEvent) {
-		if (!e.ctrlKey || e.shiftKey || e.altKey || e.metaKey) return;
+		if (!e.ctrlKey || e.altKey || e.metaKey) return;
 		const count = orderedWorktrees.length;
+
+		// Ctrl+Shift+[ or Ctrl+Shift+] (arrives as '{' or '}'): navigate terminal tabs
+		if (e.shiftKey && (e.key === '{' || e.key === '}' || e.key === '[' || e.key === ']')) {
+			e.preventDefault();
+			const path = $currentWorktree?.path;
+			if (!path) return;
+			const sessions = $terminalSessions[path] ?? [];
+			if (sessions.length < 2) return;
+			const activeId = $activeTerminalSession[path];
+			const idx = activeId ? sessions.indexOf(activeId) : 0;
+			if (idx === -1) return;
+			const isPrev = e.key === '{' || e.key === '[';
+			const next = isPrev
+				? (idx - 1 + sessions.length) % sessions.length
+				: (idx + 1) % sessions.length;
+			activeTerminalSession.update((s) => ({ ...s, [path]: sessions[next] }));
+			return;
+		}
+
+		if (e.shiftKey) return;
 		if (count === 0) return;
 
-		// Ctrl+1 through Ctrl+9: switch to positional tab
+		// Ctrl+1 through Ctrl+9: switch to positional worktree tab
 		if (e.key >= '1' && e.key <= '9') {
 			const idx = parseInt(e.key) - 1;
 			if (idx < count) {
@@ -120,7 +140,7 @@
 			return;
 		}
 
-		// Ctrl+[ / Ctrl+]: prev/next tab
+		// Ctrl+[ / Ctrl+]: prev/next worktree tab
 		if (e.key === '[' || e.key === ']') {
 			e.preventDefault();
 			const currentIdx = orderedWorktrees.findIndex(
@@ -213,15 +233,21 @@
 				console.error('Failed to delete worktree:', data.error);
 				return;
 			}
-			// Clean up the deleted worktree's terminal session
-			const sid = $terminalSessions[wt.path];
-			if (sid) {
+			// Clean up all terminal sessions for the deleted worktree
+			const sids = $terminalSessions[wt.path] ?? [];
+			for (const sid of sids) {
 				fetch('/api/terminal/sessions', {
 					method: 'DELETE',
 					headers: { 'Content-Type': 'application/json' },
 					body: JSON.stringify({ id: sid }),
 				});
+			}
+			if (sids.length > 0) {
 				terminalSessions.update((s) => {
+					const { [wt.path]: _, ...rest } = s;
+					return rest;
+				});
+				activeTerminalSession.update((s) => {
 					const { [wt.path]: _, ...rest } = s;
 					return rest;
 				});
