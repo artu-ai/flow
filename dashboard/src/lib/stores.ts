@@ -42,11 +42,17 @@ export const currentFile = persistedWritable<string | null>('dashboard:currentFi
 export const activeView = persistedWritable<ViewTab>('dashboard:activeView', 'editor');
 export const diffBase = writable<DiffBase>('head');
 export const worktrees = writable<Worktree[]>([]);
-export const terminalSessionId = writable<string | null>(null);
+/** Maps worktree path → terminal session ID so each worktree keeps its own session. */
+export const terminalSessions = writable<Record<string, string>>({});
 export const hasUnsavedChanges = writable<boolean>(false);
 export const selectedWorktreePath = persistedWritable<string | null>('dashboard:worktreePath', null);
 export const sidebarWidth = persistedWritable<number>('dashboard:sidebarWidth', 256);
 export const terminalWidth = persistedWritable<number>('dashboard:terminalWidth', 480);
+export const terminalHeight = persistedWritable<number>('dashboard:terminalHeight', 300);
+export type TerminalLayout = 'right' | 'bottom';
+export const terminalLayout = persistedWritable<TerminalLayout>('dashboard:terminalLayout', 'right');
+export const worktreeOrder = persistedWritable<string[]>('dashboard:worktreeOrder', []);
+export const previousWorktreePath = writable<string | null>(null);
 
 export type InlineEditAction =
 	| { type: 'newFile'; parentPath: string }

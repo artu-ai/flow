@@ -1,95 +1,27 @@
 <script lang="ts">
-	import { currentWorktree, terminalSessionId } from '$lib/stores';
+	import { currentWorktree, terminalSessions } from '$lib/stores';
 	import { onMount } from 'svelte';
 	import { Button } from '$lib/components/ui/button';
 	import TerminalSquareIcon from '@lucide/svelte/icons/terminal';
+	import TerminalInstance from './TerminalInstance.svelte';
 
-	let container: HTMLDivElement;
-	let term: any;
-	let fitAddon: any;
-	let ws: WebSocket | null = null;
+	let currentSessionId = $derived($terminalSessions[$currentWorktree?.path ?? ''] ?? null);
+	let sessions = $derived(Object.entries($terminalSessions));
 
-	function onUnload() {
-		const sid = $terminalSessionId;
-		if (sid) {
+	function destroyAllSessions() {
+		for (const [, sid] of Object.entries($terminalSessions)) {
 			navigator.sendBeacon(
 				'/api/terminal/sessions',
 				new Blob([JSON.stringify({ id: sid, _method: 'DELETE' })], { type: 'application/json' })
 			);
-			terminalSessionId.set(null);
 		}
+		terminalSessions.set({});
 	}
 
 	onMount(() => {
-		window.addEventListener('unload', onUnload);
-
-		return () => {
-			window.removeEventListener('unload', onUnload);
-			ws?.close();
-			term?.dispose();
-		};
+		window.addEventListener('unload', destroyAllSessions);
+		return () => window.removeEventListener('unload', destroyAllSessions);
 	});
-
-	async function initTerminal(sessionId: string) {
-		const { Terminal } = await import('@xterm/xterm');
-		const { FitAddon } = await import('@xterm/addon-fit');
-
-		if (term) {
-			term.dispose();
-		}
-
-		term = new Terminal({
-			cursorBlink: true,
-			fontSize: 13,
-			fontFamily: 'Menlo, Monaco, "Courier New", monospace',
-			theme: {
-				background: '#09090b',
-				foreground: '#e4e4e7',
-				cursor: '#e4e4e7',
-				selectionBackground: '#3f3f46',
-			},
-		});
-
-		fitAddon = new FitAddon();
-		term.loadAddon(fitAddon);
-		term.open(container);
-		fitAddon.fit();
-
-		const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
-		ws = new WebSocket(`${protocol}//${window.location.host}/terminal/${sessionId}`);
-
-		ws.onopen = () => {
-			const dims = fitAddon.proposeDimensions();
-			if (dims) {
-				ws!.send(JSON.stringify({ type: 'resize', cols: dims.cols, rows: dims.rows }));
-			}
-		};
-
-		ws.onmessage = (event) => {
-			term.write(event.data);
-		};
-
-		ws.onclose = () => {
-			term.write('\r\n\x1b[31m[Connection closed]\x1b[0m\r\n');
-		};
-
-		term.onData((data: string) => {
-			if (ws?.readyState === WebSocket.OPEN) {
-				ws.send(data);
-			}
-		});
-
-		const resizeObserver = new ResizeObserver(() => {
-			fitAddon.fit();
-			const dims = fitAddon.proposeDimensions();
-			if (dims && ws?.readyState === WebSocket.OPEN) {
-				ws.send(JSON.stringify({ type: 'resize', cols: dims.cols, rows: dims.rows }));
-			}
-		});
-		resizeObserver.observe(container);
-
-		return () => resizeObserver.disconnect();
-	}
 
 	let error: string | null = $state(null);
 
@@ -109,19 +41,15 @@
 				return;
 			}
 			if (data.id) {
-				terminalSessionId.set(data.id);
+				terminalSessions.update((s) => ({
+					...s,
+					[$currentWorktree!.path]: data.id,
+				}));
 			}
 		} catch (e) {
 			error = String(e);
 		}
 	}
-
-	$effect(() => {
-		const sid = $terminalSessionId;
-		if (sid && container) {
-			initTerminal(sid);
-		}
-	});
 </script>
 
 <svelte:head>
@@ -149,7 +77,7 @@
 </style>
 
 <div class="flex min-h-0 flex-1 flex-col">
-	{#if !$terminalSessionId}
+	{#if !currentSessionId}
 		<div class="flex flex-1 flex-col items-center justify-center gap-3">
 			<TerminalSquareIcon class="size-8 text-muted-foreground" />
 			<Button
@@ -164,5 +92,10 @@
 			{/if}
 		</div>
 	{/if}
-	<div class="flex-1" bind:this={container} class:hidden={!$terminalSessionId}></div>
+	{#each sessions as [worktreePath, sessionId] (sessionId)}
+		<TerminalInstance
+			{sessionId}
+			visible={worktreePath === $currentWorktree?.path}
+		/>
+	{/each}
 </div>
