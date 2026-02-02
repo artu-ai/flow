@@ -21,6 +21,14 @@
 	import type { GitFileStatus } from '$lib/stores';
 	import { onMount } from 'svelte';
 
+	let { worktreePath }: { worktreePath: string } = $props();
+
+	let myFile = $derived($currentFile[worktreePath] ?? null);
+
+	function setFile(path: string | null) {
+		currentFile.update((m) => ({ ...m, [worktreePath]: path }));
+	}
+
 	interface ChangedFile {
 		path: string;
 		status: string;
@@ -79,16 +87,14 @@
 	let discardDialogOpen = $state(false);
 
 	async function loadWorkingChanges() {
-		if (!$currentWorktree) return;
-		const params = new URLSearchParams({ worktree: $currentWorktree.path });
+		const params = new URLSearchParams({ worktree: worktreePath });
 		const res = await fetch(`/api/git/status?${params}`);
 		const data = await res.json();
 		workingFiles = data.files || [];
 	}
 
 	async function loadBranchChanges() {
-		if (!$currentWorktree) return;
-		const params = new URLSearchParams({ worktree: $currentWorktree.path });
+		const params = new URLSearchParams({ worktree: worktreePath });
 		const res = await fetch(`/api/git/branch-diff?${params}`);
 		const data = await res.json();
 		branchFiles = data.files || [];
@@ -101,13 +107,13 @@
 	}
 
 	function selectWorkingFile(file: ChangedFile) {
-		currentFile.set(file.path);
+		setFile(file.path);
 		diffBase.set('head');
 		activeView.set('diff');
 	}
 
 	function selectBranchFile(file: BranchFile) {
-		currentFile.set(file.path);
+		setFile(file.path);
 		diffBase.set('main');
 		activeView.set('diff');
 	}
@@ -142,13 +148,12 @@
 
 	// File actions
 	async function stageFile(file: ChangedFile) {
-		if (!$currentWorktree) return;
 		actionLoading = file.path;
 		try {
 			await fetch('/api/git/stage', {
 				method: 'POST',
 				headers: { 'Content-Type': 'application/json' },
-				body: JSON.stringify({ worktree: $currentWorktree.path, file: file.path }),
+				body: JSON.stringify({ worktree: worktreePath, file: file.path }),
 			});
 			await refresh();
 		} finally {
@@ -157,13 +162,12 @@
 	}
 
 	async function unstageFile(file: ChangedFile) {
-		if (!$currentWorktree) return;
 		actionLoading = file.path;
 		try {
 			await fetch('/api/git/unstage', {
 				method: 'POST',
 				headers: { 'Content-Type': 'application/json' },
-				body: JSON.stringify({ worktree: $currentWorktree.path, file: file.path }),
+				body: JSON.stringify({ worktree: worktreePath, file: file.path }),
 			});
 			await refresh();
 		} finally {
@@ -177,14 +181,14 @@
 	}
 
 	async function executeDiscard() {
-		if (!$currentWorktree || !discardFile) return;
+		if (!discardFile) return;
 		actionLoading = discardFile.path;
 		discardDialogOpen = false;
 		try {
 			await fetch('/api/git/discard', {
 				method: 'POST',
 				headers: { 'Content-Type': 'application/json' },
-				body: JSON.stringify({ worktree: $currentWorktree.path, file: discardFile.path }),
+				body: JSON.stringify({ worktree: worktreePath, file: discardFile.path }),
 			});
 			await refresh();
 		} finally {
@@ -201,14 +205,14 @@
 	}
 
 	async function executeCommit() {
-		if (!$currentWorktree || !commitMessage.trim()) return;
+		if (!commitMessage.trim()) return;
 		commitLoading = true;
 		try {
 			const res = await fetch('/api/git/commit', {
 				method: 'POST',
 				headers: { 'Content-Type': 'application/json' },
 				body: JSON.stringify({
-					worktree: $currentWorktree.path,
+					worktree: worktreePath,
 					message: commitMessage.trim(),
 					stageAll: commitStageAll,
 				}),
@@ -229,10 +233,9 @@
 		branchSearch = '';
 		branches = [];
 		branchDialogOpen = true;
-		if (!$currentWorktree) return;
 		branchLoading = true;
 		try {
-			const params = new URLSearchParams({ worktree: $currentWorktree.path });
+			const params = new URLSearchParams({ worktree: worktreePath });
 			const res = await fetch(`/api/git/branches?${params}`);
 			const data = await res.json();
 			branches = data.branches || [];
@@ -245,14 +248,13 @@
 	let remoteBranches = $derived(branches.filter((b) => b.remote));
 
 	async function selectBranch(branchName: string) {
-		if (!$currentWorktree) return;
 		branchLoading = true;
 		const endpoint = branchDialogMode === 'merge' ? '/api/git/merge' : '/api/git/checkout';
 		try {
 			const res = await fetch(endpoint, {
 				method: 'POST',
 				headers: { 'Content-Type': 'application/json' },
-				body: JSON.stringify({ worktree: $currentWorktree.path, branch: branchName }),
+				body: JSON.stringify({ worktree: worktreePath, branch: branchName }),
 			});
 			const data = await res.json();
 			if (data.ok) {
@@ -263,7 +265,7 @@
 					const listRes = await fetch('/api/worktrees');
 					const allWorktrees = await listRes.json();
 					worktrees.set(allWorktrees);
-					const updated = allWorktrees.find((w: { path: string }) => w.path === $currentWorktree?.path);
+					const updated = allWorktrees.find((w: { path: string }) => w.path === worktreePath);
 					if (updated) {
 						currentWorktree.set(updated);
 					}
@@ -275,13 +277,12 @@
 	}
 
 	async function executePull() {
-		if (!$currentWorktree) return;
 		pullLoading = true;
 		try {
 			await fetch('/api/git/pull', {
 				method: 'POST',
 				headers: { 'Content-Type': 'application/json' },
-				body: JSON.stringify({ worktree: $currentWorktree.path }),
+				body: JSON.stringify({ worktree: worktreePath }),
 			});
 			await refresh();
 		} finally {
@@ -290,13 +291,12 @@
 	}
 
 	async function executePush() {
-		if (!$currentWorktree) return;
 		pushLoading = true;
 		try {
 			await fetch('/api/git/push', {
 				method: 'POST',
 				headers: { 'Content-Type': 'application/json' },
-				body: JSON.stringify({ worktree: $currentWorktree.path }),
+				body: JSON.stringify({ worktree: worktreePath }),
 			});
 		} finally {
 			pushLoading = false;
@@ -304,13 +304,12 @@
 	}
 
 	async function executeFetch() {
-		if (!$currentWorktree) return;
 		fetchLoading = true;
 		try {
 			await fetch('/api/git/fetch', {
 				method: 'POST',
 				headers: { 'Content-Type': 'application/json' },
-				body: JSON.stringify({ worktree: $currentWorktree.path }),
+				body: JSON.stringify({ worktree: worktreePath }),
 			});
 			await refresh();
 		} finally {
@@ -332,9 +331,7 @@
 	});
 
 	$effect(() => {
-		if ($currentWorktree) {
-			refresh();
-		}
+		refresh();
 	});
 </script>
 
@@ -384,7 +381,7 @@
 					</Sidebar.GroupLabel>
 					{#each stagedFiles as file}
 						<Sidebar.MenuItem>
-							<Sidebar.MenuButton isActive={$currentFile === file.path} class="group/file pe-8 data-[active=true]:font-normal {statusColor(workingFileStatus(file))}" onclick={() => selectWorkingFile(file)}>
+							<Sidebar.MenuButton isActive={myFile === file.path} class="group/file pe-8 data-[active=true]:font-normal {statusColor(workingFileStatus(file))}" onclick={() => selectWorkingFile(file)}>
 								<FileTypeIcon filename={file.path.split('/').pop() ?? file.path} />
 								<span class="truncate group-hover/file:me-5">{file.path}</span>
 								<span class="absolute right-6 flex opacity-0 group-hover/file:opacity-100 transition-opacity">
@@ -412,7 +409,7 @@
 					</Sidebar.GroupLabel>
 					{#each unstagedFiles as file}
 						<Sidebar.MenuItem>
-							<Sidebar.MenuButton isActive={$currentFile === file.path} class="group/file pe-8 data-[active=true]:font-normal {statusColor(workingFileStatus(file))}" onclick={() => selectWorkingFile(file)}>
+							<Sidebar.MenuButton isActive={myFile === file.path} class="group/file pe-8 data-[active=true]:font-normal {statusColor(workingFileStatus(file))}" onclick={() => selectWorkingFile(file)}>
 								<FileTypeIcon filename={file.path.split('/').pop() ?? file.path} />
 								<span class="truncate group-hover/file:me-10">{file.path}</span>
 								<span class="absolute right-6 flex gap-0.5 opacity-0 group-hover/file:opacity-100 transition-opacity">
@@ -454,7 +451,7 @@
 			<Sidebar.Menu>
 				{#each branchFiles as file}
 					<Sidebar.MenuItem>
-						<Sidebar.MenuButton isActive={$currentFile === file.path} class="pe-8 data-[active=true]:font-normal {statusColor(branchFileStatus(file.status))}" onclick={() => selectBranchFile(file)}>
+						<Sidebar.MenuButton isActive={myFile === file.path} class="pe-8 data-[active=true]:font-normal {statusColor(branchFileStatus(file.status))}" onclick={() => selectBranchFile(file)}>
 							<FileTypeIcon filename={file.path.split('/').pop() ?? file.path} />
 							<span>{file.path}</span>
 						</Sidebar.MenuButton>

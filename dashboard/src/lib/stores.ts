@@ -54,7 +54,7 @@ export type DiffBase = 'head' | 'main';
 export type GitFileStatus = 'modified' | 'added' | 'deleted' | 'renamed' | 'untracked' | 'none';
 
 export const currentWorktree = writable<Worktree | null>(null);
-export const currentFile = persistedWritable<string | null>('dashboard:currentFile', null);
+export const currentFile = localPersistedWritable<Record<string, string | null>>('dashboard:worktreeFiles', {});
 export const activeView = persistedWritable<ViewTab>('dashboard:activeView', 'editor');
 export const diffBase = writable<DiffBase>('head');
 export const worktrees = writable<Worktree[]>([]);
@@ -62,7 +62,7 @@ export const worktrees = writable<Worktree[]>([]);
 export const terminalSessions = writable<Record<string, string[]>>({});
 /** Maps worktree path → currently active terminal session ID. */
 export const activeTerminalSession = writable<Record<string, string>>({});
-export const hasUnsavedChanges = writable<boolean>(false);
+export const hasUnsavedChanges = writable<Record<string, boolean>>({});
 export const selectedWorktreePath = persistedWritable<string | null>('dashboard:worktreePath', null);
 export const sidebarWidth = persistedWritable<number>('dashboard:sidebarWidth', 256);
 export const terminalWidth = persistedWritable<number>('dashboard:terminalWidth', 480);
@@ -84,8 +84,8 @@ export type InlineEditAction =
 
 export const inlineEdit = writable<InlineEditAction | null>(null);
 
-/** Maps file paths to their git status for the current worktree. */
-export const gitFileStatuses = writable<Map<string, GitFileStatus>>(new Map());
+/** Maps worktree path → file path → git status. */
+export const gitFileStatuses = writable<Record<string, Map<string, GitFileStatus>>>({});
 
 const STATUS_PRIORITY: Record<GitFileStatus, number> = {
 	modified: 4,

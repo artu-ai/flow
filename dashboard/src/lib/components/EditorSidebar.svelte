@@ -5,7 +5,7 @@
 	import FolderTreeIcon from '@lucide/svelte/icons/folder-tree';
 	import GitBranchIcon from '@lucide/svelte/icons/git-branch';
 	import type { ComponentProps } from 'svelte';
-	import { activeView } from '$lib/stores';
+	import { activeView, worktrees, currentWorktree } from '$lib/stores';
 	import FileTreeSidebar from './FileTreeSidebar.svelte';
 	import ChangesSidebar from './ChangesSidebar.svelte';
 	import SidebarResizeHandle from './SidebarResizeHandle.svelte';
@@ -55,12 +55,14 @@
 		</Tooltip.Root>
 	</Sidebar.Header>
 	<Sidebar.Content>
-		<div class:hidden={activeTab !== 'files'}>
-			<FileTreeSidebar />
-		</div>
-		<div class:hidden={activeTab !== 'changes'}>
-			<ChangesSidebar />
-		</div>
+		{#each $worktrees as wt (wt.path)}
+			<div class:hidden={wt.path !== $currentWorktree?.path || activeTab !== 'files'}>
+				<FileTreeSidebar worktreePath={wt.path} />
+			</div>
+			<div class:hidden={wt.path !== $currentWorktree?.path || activeTab !== 'changes'}>
+				<ChangesSidebar worktreePath={wt.path} />
+			</div>
+		{/each}
 	</Sidebar.Content>
 	{#if onwidthchange}
 		<SidebarResizeHandle onresize={onwidthchange} />

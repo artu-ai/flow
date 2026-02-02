@@ -1,26 +1,33 @@
 <script lang="ts">
 	import * as Sidebar from '$lib/components/ui/sidebar/index.js';
 	import * as ContextMenu from '$lib/components/ui/context-menu/index.js';
-	import { currentWorktree, currentFile, activeView, gitFileStatuses, statusColor, inlineEdit, showGitIgnored } from '$lib/stores';
+	import { currentFile, activeView, gitFileStatuses, statusColor, inlineEdit, showGitIgnored } from '$lib/stores';
 	import type { FileEntry, GitFileStatus, InlineEditAction } from '$lib/stores';
 	import LazyDir from './LazyDir.svelte';
 	import FileTypeIcon from './FileTypeIcon.svelte';
 	import FolderIcon from '@lucide/svelte/icons/folder';
 	import InlineInput from './InlineInput.svelte';
 
+	let { worktreePath }: { worktreePath: string } = $props();
+
 	let rootEntries: FileEntry[] = $state([]);
 
+	let myFile = $derived($currentFile[worktreePath] ?? null);
+	let myStatuses = $derived($gitFileStatuses[worktreePath] ?? new Map<string, GitFileStatus>());
+
+	function setFile(path: string | null) {
+		currentFile.update((m) => ({ ...m, [worktreePath]: path }));
+	}
+
 	async function loadRootEntries() {
-		if (!$currentWorktree) return;
-		const params = new URLSearchParams({ root: $currentWorktree.path, dir: '.' });
+		const params = new URLSearchParams({ root: worktreePath, dir: '.' });
 		if ($showGitIgnored) params.set('showGitIgnored', '1');
 		const res = await fetch(`/api/files?${params}`);
 		rootEntries = await res.json();
 	}
 
 	async function loadGitStatuses() {
-		if (!$currentWorktree) return;
-		const params = new URLSearchParams({ worktree: $currentWorktree.path });
+		const params = new URLSearchParams({ worktree: worktreePath });
 		const res = await fetch(`/api/git/status?${params}`);
 		const data = await res.json();
 		const map = new Map<string, GitFileStatus>();
@@ -31,25 +38,23 @@
 			else if (file.staged === 'R' || file.status === 'R') map.set(file.path, 'renamed');
 			else map.set(file.path, 'modified');
 		}
-		gitFileStatuses.set(map);
+		gitFileStatuses.update((s) => ({ ...s, [worktreePath]: map }));
 	}
 
 	function selectFile(name: string) {
-		currentFile.set(name);
+		setFile(name);
 		activeView.set('editor');
 	}
 
 	function fileColor(name: string): string {
-		return statusColor($gitFileStatuses.get(name) ?? 'none');
+		return statusColor(myStatuses.get(name) ?? 'none');
 	}
 
 	$effect(() => {
-		// Re-fetch when worktree or showGitIgnored changes
+		// Re-fetch when showGitIgnored changes
 		const _ignored = $showGitIgnored;
-		if ($currentWorktree) {
-			loadRootEntries();
-			loadGitStatuses();
-		}
+		loadRootEntries();
+		loadGitStatuses();
 	});
 
 	// Inline edit state
@@ -77,18 +82,18 @@
 	}
 
 	async function confirmCreate(newName: string) {
-		if (!$currentWorktree || !editAction) return;
+		if (!editAction) return;
 		const action = editAction.type === 'newFile' ? 'createFile' : 'createDir';
 		const res = await fetch('/api/files', {
 			method: 'POST',
 			headers: { 'Content-Type': 'application/json' },
-			body: JSON.stringify({ action, root: $currentWorktree.path, path: newName })
+			body: JSON.stringify({ action, root: worktreePath, path: newName })
 		});
 		if (res.ok) {
 			await loadRootEntries();
 			await loadGitStatuses();
 			if (editAction.type === 'newFile') {
-				currentFile.set(newName);
+				setFile(newName);
 				activeView.set('editor');
 			}
 		}
@@ -96,19 +101,17 @@
 	}
 
 	async function confirmRename(newName: string, oldPath: string) {
-		if (!$currentWorktree) return;
 		const res = await fetch('/api/files', {
 			method: 'PATCH',
 			headers: { 'Content-Type': 'application/json' },
-			body: JSON.stringify({ root: $currentWorktree.path, oldPath, newPath: newName })
+			body: JSON.stringify({ root: worktreePath, oldPath, newPath: newName })
 		});
 		if (res.ok) {
-			const cf = $currentFile;
-			if (cf) {
-				if (cf === oldPath) {
-					currentFile.set(newName);
-				} else if (cf.startsWith(oldPath + '/')) {
-					currentFile.set(newName + cf.substring(oldPath.length));
+			if (myFile) {
+				if (myFile === oldPath) {
+					setFile(newName);
+				} else if (myFile.startsWith(oldPath + '/')) {
+					setFile(newName + myFile.substring(oldPath.length));
 				}
 			}
 			await loadRootEntries();
@@ -122,16 +125,14 @@
 	}
 
 	async function handleDeleteEntry(entryPath: string) {
-		if (!$currentWorktree) return;
 		const res = await fetch('/api/files', {
 			method: 'DELETE',
 			headers: { 'Content-Type': 'application/json' },
-			body: JSON.stringify({ root: $currentWorktree.path, path: entryPath })
+			body: JSON.stringify({ root: worktreePath, path: entryPath })
 		});
 		if (res.ok) {
-			const cf = $currentFile;
-			if (cf && (cf === entryPath || cf.startsWith(entryPath + '/'))) {
-				currentFile.set(null);
+			if (myFile && (myFile === entryPath || myFile.startsWith(entryPath + '/'))) {
+				setFile(null);
 			}
 			await loadRootEntries();
 			await loadGitStatuses();
@@ -164,7 +165,7 @@
 					{/if}
 					{#each rootEntries as entry (entry.name)}
 						{#if entry.type === 'directory'}
-							<LazyDir name={entry.name} path={entry.name} root={$currentWorktree?.path ?? ''} onrefresh={refreshRoot} />
+							<LazyDir name={entry.name} path={entry.name} root={worktreePath} onrefresh={refreshRoot} />
 						{:else if isRenamingEntry(entry.name)}
 							<li class="flex items-center gap-2 px-2 py-0.5">
 								<FileTypeIcon filename={entry.name} />
@@ -179,7 +180,7 @@
 							<ContextMenu.Root>
 								<ContextMenu.Trigger>
 									<Sidebar.MenuButton
-										isActive={$currentFile === entry.name}
+										isActive={myFile === entry.name}
 										class="data-[active=true]:font-normal {fileColor(entry.name)}"
 										onclick={() => selectFile(entry.name)}
 									>

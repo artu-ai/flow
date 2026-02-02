@@ -7,7 +7,7 @@
 	import * as DropdownMenu from '$lib/components/ui/dropdown-menu';
 	import { Button } from '$lib/components/ui/button';
 	import { Kbd } from '$lib/components/ui/kbd';
-	import { currentWorktree, worktrees, terminalSessions, activeTerminalSession, sidebarWidth, terminalWidth, terminalHeight, terminalLayout, hasUnsavedChanges, worktreeOrder, previousWorktreePath, focusedPanel, showGitIgnored, linearApiKey } from '$lib/stores';
+	import { currentWorktree, worktrees, terminalSessions, activeTerminalSession, sidebarWidth, terminalWidth, terminalHeight, terminalLayout, hasUnsavedChanges, worktreeOrder, previousWorktreePath, focusedPanel, showGitIgnored, linearApiKey, currentFile, gitFileStatuses } from '$lib/stores';
 	import type { Worktree } from '$lib/stores';
 	import Editor from '$lib/components/Editor.svelte';
 	import Terminal from '$lib/components/Terminal.svelte';
@@ -27,7 +27,7 @@
 
 	onMount(() => {
 		function onBeforeUnload(e: BeforeUnloadEvent) {
-			if (Object.values($terminalSessions).some((ids) => ids.length > 0) || $hasUnsavedChanges) {
+			if (Object.values($terminalSessions).some((ids) => ids.length > 0) || Object.values($hasUnsavedChanges).some(Boolean)) {
 				e.preventDefault();
 			}
 		}
@@ -101,7 +101,7 @@
 		dropIndex = null;
 	}
 
-	let editorRef = $state<Editor>();
+	let editorRefs = $state<Record<string, Editor>>({});
 	let terminalRef = $state<Terminal>();
 
 	function handleWorktreeChange(value: string) {
@@ -120,7 +120,7 @@
 		if (panel === 'terminal') {
 			terminalRef?.focusActive();
 		} else {
-			editorRef?.focus();
+			editorRefs[path]?.focus();
 		}
 	}
 
@@ -323,6 +323,11 @@
 					return rest;
 				});
 			}
+			// Clean up per-worktree editor state
+			currentFile.update((s) => { const { [wt.path]: _, ...rest } = s; return rest; });
+			hasUnsavedChanges.update((s) => { const { [wt.path]: _, ...rest } = s; return rest; });
+			gitFileStatuses.update((s) => { const { [wt.path]: _, ...rest } = s; return rest; });
+			delete editorRefs[wt.path];
 			const listRes = await fetch('/api/worktrees');
 			const allWorktrees: Worktree[] = await listRes.json();
 			worktrees.set(allWorktrees);
@@ -466,8 +471,12 @@
 					</div>
 				</header>
 				<div class="flex min-h-0 flex-1 {$terminalLayout === 'bottom' ? 'flex-col' : ''}">
-					<div class="min-w-0 flex-1 overflow-hidden">
-						<Editor bind:this={editorRef} />
+					<div class="relative min-w-0 flex-1 overflow-hidden">
+						{#each orderedWorktrees as wt (wt.path)}
+							<div class="absolute inset-0" class:invisible={wt.path !== $currentWorktree?.path} class:pointer-events-none={wt.path !== $currentWorktree?.path}>
+								<Editor bind:this={editorRefs[wt.path]} worktreePath={wt.path} />
+							</div>
+						{/each}
 					</div>
 					{#if terminalOpen}
 						<PanelResizeHandle orientation={$terminalLayout === 'bottom' ? 'horizontal' : 'vertical'} onresize={handleTerminalResize} />

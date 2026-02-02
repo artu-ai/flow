@@ -1,9 +1,11 @@
 <script lang="ts">
-	import { currentWorktree, currentFile, activeView, diffBase, hasUnsavedChanges, focusedPanel } from '$lib/stores';
+	import { currentFile, activeView, diffBase, hasUnsavedChanges, focusedPanel } from '$lib/stores';
 	import { onMount } from 'svelte';
 	import { Badge } from '$lib/components/ui/badge';
 	import { Button } from '$lib/components/ui/button';
 	import FileBreadcrumb from './FileBreadcrumb.svelte';
+
+	let { worktreePath }: { worktreePath: string } = $props();
 
 	let editorContainer: HTMLDivElement;
 	let diffContainer: HTMLDivElement;
@@ -14,6 +16,9 @@
 
 	let language: string = $state('plaintext');
 	let saving: boolean = $state(false);
+
+	let filePath = $derived($currentFile[worktreePath] ?? null);
+	let unsaved = $derived($hasUnsavedChanges[worktreePath] ?? false);
 
 	onMount(() => {
 		monacoReady = initMonaco();
@@ -54,14 +59,11 @@
 		});
 
 		editor.onDidChangeModelContent(() => {
-			hasUnsavedChanges.set(true);
+			hasUnsavedChanges.update((s) => ({ ...s, [worktreePath]: true }));
 		});
 
 		editor.onDidFocusEditorWidget(() => {
-			const path = $currentWorktree?.path;
-			if (path) {
-				focusedPanel.update((s) => ({ ...s, [path]: 'editor' }));
-			}
+			focusedPanel.update((s) => ({ ...s, [worktreePath]: 'editor' }));
 		});
 	}
 
@@ -70,9 +72,9 @@
 		editor?.focus();
 	}
 
-	async function loadFile(worktreePath: string, filePath: string) {
+	async function loadFile(file: string) {
 		await monacoReady;
-		const params = new URLSearchParams({ root: worktreePath, path: filePath });
+		const params = new URLSearchParams({ root: worktreePath, path: file });
 		const res = await fetch(`/api/files?${params}`);
 		const data = await res.json();
 		if (data.error) return;
@@ -85,15 +87,15 @@
 				model.setValue(data.content);
 				monaco.editor.setModelLanguage(model, data.language);
 			}
-			hasUnsavedChanges.set(false);
+			hasUnsavedChanges.update((s) => ({ ...s, [worktreePath]: false }));
 		}
 	}
 
-	async function loadDiff(worktreePath: string, filePath: string, base: string) {
+	async function loadDiff(file: string, base: string) {
 		await monacoReady;
 		if (!monaco || !diffContainer) return;
 
-		const params = new URLSearchParams({ worktree: worktreePath, file: filePath, base });
+		const params = new URLSearchParams({ worktree: worktreePath, file, base });
 		const res = await fetch(`/api/git/diff?${params}`);
 		const data = await res.json();
 		if (data.error) return;
@@ -106,8 +108,8 @@
 			diffEditor = null;
 		}
 
-		const originalModel = monaco.editor.createModel(data.original ?? '', undefined, monaco.Uri.parse(`original/${filePath}`));
-		const modifiedModel = monaco.editor.createModel(data.modified ?? '', undefined, monaco.Uri.parse(`modified/${filePath}`));
+		const originalModel = monaco.editor.createModel(data.original ?? '', undefined, monaco.Uri.parse(`original/${file}`));
+		const modifiedModel = monaco.editor.createModel(data.modified ?? '', undefined, monaco.Uri.parse(`modified/${file}`));
 
 		diffEditor = monaco.editor.createDiffEditor(diffContainer, {
 			theme: 'dashboard-dark',
@@ -123,58 +125,56 @@
 	}
 
 	async function saveFile() {
-		if (!$currentWorktree || !$currentFile || !editor) return;
+		if (!filePath || !editor) return;
 		saving = true;
 		const content = editor.getValue();
-		const params = new URLSearchParams({ root: $currentWorktree.path, path: $currentFile });
+		const params = new URLSearchParams({ root: worktreePath, path: filePath });
 		await fetch(`/api/files?${params}`, {
 			method: 'PUT',
 			headers: { 'Content-Type': 'application/json' },
 			body: JSON.stringify({ content }),
 		});
 		saving = false;
-		hasUnsavedChanges.set(false);
+		hasUnsavedChanges.update((s) => ({ ...s, [worktreePath]: false }));
 	}
 
 	$effect(() => {
-		const wt = $currentWorktree;
-		const file = $currentFile;
-		if (wt && file && $activeView === 'editor') {
-			loadFile(wt.path, file);
+		const file = filePath;
+		if (file && $activeView === 'editor') {
+			loadFile(file);
 		}
 	});
 
 	$effect(() => {
-		const wt = $currentWorktree;
-		const file = $currentFile;
+		const file = filePath;
 		const base = $diffBase;
-		if (wt && file && $activeView === 'diff') {
-			loadDiff(wt.path, file, base);
+		if (file && $activeView === 'diff') {
+			loadDiff(file, base);
 		}
 	});
 </script>
 
 <div class="flex h-full flex-col">
-	{#if $currentFile}
-		<FileBreadcrumb filePath={$currentFile}>
+	{#if filePath}
+		<FileBreadcrumb filePath={filePath}>
 			{#if $activeView === 'diff'}
 				<Badge variant="outline" class="text-[10px]">
 					{$diffBase === 'main' ? 'vs main' : 'vs HEAD'}
 				</Badge>
 			{:else if saving}
 				<Badge variant="outline" class="text-[10px]">Saving...</Badge>
-			{:else if $hasUnsavedChanges}
+			{:else if unsaved}
 				<Button variant="ghost" size="sm" class="h-5 px-1.5 text-[10px]" onclick={saveFile}>Save</Button>
 			{:else}
 				<span class="text-muted-foreground/60">{language}</span>
 			{/if}
 		</FileBreadcrumb>
 	{/if}
-	{#if !$currentFile}
+	{#if !filePath}
 		<div class="flex flex-1 items-center justify-center text-muted-foreground text-sm">
 			Select a file to edit
 		</div>
 	{/if}
-	<div class="flex-1" class:hidden={!$currentFile || $activeView !== 'editor'} bind:this={editorContainer}></div>
-	<div class="flex-1" class:hidden={!$currentFile || $activeView !== 'diff'} bind:this={diffContainer}></div>
+	<div class="flex-1" class:hidden={!filePath || $activeView !== 'editor'} bind:this={editorContainer}></div>
+	<div class="flex-1" class:hidden={!filePath || $activeView !== 'diff'} bind:this={diffContainer}></div>
 </div>

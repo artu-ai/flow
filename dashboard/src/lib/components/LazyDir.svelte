@@ -4,8 +4,8 @@
 	import * as ContextMenu from '$lib/components/ui/context-menu/index.js';
 	import ChevronRightIcon from '@lucide/svelte/icons/chevron-right';
 	import FolderIcon from '@lucide/svelte/icons/folder';
-	import { currentWorktree, currentFile, activeView, gitFileStatuses, statusColor, folderStatus, inlineEdit, showGitIgnored } from '$lib/stores';
-	import type { FileEntry, InlineEditAction } from '$lib/stores';
+	import { currentFile, activeView, gitFileStatuses, statusColor, folderStatus, inlineEdit, showGitIgnored } from '$lib/stores';
+	import type { FileEntry, GitFileStatus, InlineEditAction } from '$lib/stores';
 	import Self from './LazyDir.svelte';
 	import FileTypeIcon from './FileTypeIcon.svelte';
 	import InlineInput from './InlineInput.svelte';
@@ -14,6 +14,13 @@
 
 	let children: FileEntry[] | null = $state(null);
 	let open = $state(false);
+
+	let myFile = $derived($currentFile[root] ?? null);
+	let myStatuses = $derived($gitFileStatuses[root] ?? new Map<string, GitFileStatus>());
+
+	function setFile(path: string | null) {
+		currentFile.update((m) => ({ ...m, [root]: path }));
+	}
 
 	async function loadChildren() {
 		const params = new URLSearchParams({ root, dir: path });
@@ -36,7 +43,7 @@
 
 	function selectFile(fileName: string) {
 		const filePath = path === '.' ? fileName : `${path}/${fileName}`;
-		currentFile.set(filePath);
+		setFile(filePath);
 		activeView.set('editor');
 	}
 
@@ -97,7 +104,7 @@
 		if (res.ok) {
 			await forceLoadChildren();
 			if (editAction.type === 'newFile') {
-				currentFile.set(newPath);
+				setFile(newPath);
 				activeView.set('editor');
 			}
 		}
@@ -113,12 +120,11 @@
 			body: JSON.stringify({ root, oldPath, newPath })
 		});
 		if (res.ok) {
-			const cf = $currentFile;
-			if (cf) {
-				if (cf === oldPath) {
-					currentFile.set(newPath);
-				} else if (cf.startsWith(oldPath + '/')) {
-					currentFile.set(newPath + cf.substring(oldPath.length));
+			if (myFile) {
+				if (myFile === oldPath) {
+					setFile(newPath);
+				} else if (myFile.startsWith(oldPath + '/')) {
+					setFile(newPath + myFile.substring(oldPath.length));
 				}
 			}
 			await forceLoadChildren();
@@ -135,12 +141,11 @@
 			body: JSON.stringify({ root, oldPath: path, newPath })
 		});
 		if (res.ok) {
-			const cf = $currentFile;
-			if (cf) {
-				if (cf === path) {
-					currentFile.set(newPath);
-				} else if (cf.startsWith(path + '/')) {
-					currentFile.set(newPath + cf.substring(path.length));
+			if (myFile) {
+				if (myFile === path) {
+					setFile(newPath);
+				} else if (myFile.startsWith(path + '/')) {
+					setFile(newPath + myFile.substring(path.length));
 				}
 			}
 			onrefresh?.();
@@ -159,9 +164,8 @@
 			body: JSON.stringify({ root, path: entryPath })
 		});
 		if (res.ok) {
-			const cf = $currentFile;
-			if (cf && (cf === entryPath || cf.startsWith(entryPath + '/'))) {
-				currentFile.set(null);
+			if (myFile && (myFile === entryPath || myFile.startsWith(entryPath + '/'))) {
+				setFile(null);
 			}
 			await forceLoadChildren();
 		}
@@ -174,9 +178,8 @@
 			body: JSON.stringify({ root, path })
 		});
 		if (res.ok) {
-			const cf = $currentFile;
-			if (cf && (cf === path || cf.startsWith(path + '/'))) {
-				currentFile.set(null);
+			if (myFile && (myFile === path || myFile.startsWith(path + '/'))) {
+				setFile(null);
 			}
 			onrefresh?.();
 		}
@@ -203,7 +206,7 @@
 				<ContextMenu.Trigger>
 					<Collapsible.Trigger>
 						{#snippet child({ props })}
-							<Sidebar.MenuButton {...props} class={statusColor(folderStatus(path, $gitFileStatuses))}>
+							<Sidebar.MenuButton {...props} class={statusColor(folderStatus(path, myStatuses))}>
 								<ChevronRightIcon className="transition-transform" />
 								<FolderIcon />
 								<span>{name}</span>
@@ -257,8 +260,8 @@
 								<ContextMenu.Root>
 									<ContextMenu.Trigger>
 										<Sidebar.MenuButton
-											isActive={$currentFile === filePath}
-											class="data-[active=true]:font-normal {statusColor($gitFileStatuses.get(filePath) ?? 'none')}"
+											isActive={myFile === filePath}
+											class="data-[active=true]:font-normal {statusColor(myStatuses.get(filePath) ?? 'none')}"
 											onclick={() => selectFile(entry.name)}
 										>
 											<FileTypeIcon filename={entry.name} />
