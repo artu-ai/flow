@@ -12,7 +12,6 @@
 	import { currentWorktree, worktrees, terminalSessions, activeTerminalSession, sidebarWidth, terminalWidth, terminalHeight, terminalLayout, hasUnsavedChanges, worktreeOrder, hiddenWorktrees, previousWorktreePath, focusedPanel, showGitIgnored, linearApiKey, completionConfig, linterConfig, formatterConfig, currentFile, gitFileStatuses, activePhonePanel, terminalChatInputEnabled, activeView } from '$lib/stores';
 	import type { Worktree } from '$lib/stores';
 	import { IsPhone, IsTablet } from '$lib/hooks/is-mobile.svelte.js';
-	import { useSidebar } from '$lib/components/ui/sidebar/context.svelte.js';
 	import Editor from '$lib/components/Editor.svelte';
 	import Terminal from '$lib/components/Terminal.svelte';
 	import PanelResizeHandle from '$lib/components/PanelResizeHandle.svelte';
@@ -779,18 +778,17 @@
 			</Sidebar.Inset>
 			<!-- Phone bottom navigation bar (inside Provider for sidebar context) -->
 			{#if isPhone.current}
-				{@const sidebar = useSidebar()}
 				<nav class="fixed inset-x-0 bottom-0 z-40 flex h-12 items-center justify-around border-t border-border bg-background">
 					<button
 						class="flex flex-1 flex-col items-center justify-center gap-0.5 py-1 text-muted-foreground"
-						onclick={() => { editorSidebarRef?.focusTab('files'); sidebar.setOpenMobile(true); }}
+						onclick={() => editorSidebarRef?.focusTab('files')}
 					>
 						<FolderTreeIcon class="h-5 w-5" />
 						<span class="text-[10px]">Files</span>
 					</button>
 					<button
 						class="flex flex-1 flex-col items-center justify-center gap-0.5 py-1 text-muted-foreground"
-						onclick={() => { editorSidebarRef?.focusTab('changes'); sidebar.setOpenMobile(true); }}
+						onclick={() => editorSidebarRef?.focusTab('changes')}
 					>
 						<GitBranchIcon class="h-5 w-5" />
 						<span class="text-[10px]">Changes</span>
