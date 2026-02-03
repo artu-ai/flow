@@ -242,8 +242,8 @@
 			return;
 		}
 
-		// Ctrl+Shift+N : jump to last notification source
-		if (e.shiftKey && (e.key === 'N' || e.key === 'n')) {
+		// Ctrl+Shift+J : jump to last notification source
+		if (e.shiftKey && (e.key === 'J' || e.key === 'j')) {
 			e.preventDefault();
 			terminalRef?.goToLastNotification();
 			return;
@@ -256,8 +256,8 @@
 			return;
 		}
 
-		// Ctrl+Shift+E : open create worktree dialog
-		if (e.shiftKey && (e.key === 'E' || e.key === 'e')) {
+		// Ctrl+Shift+N : open create worktree dialog
+		if (e.shiftKey && (e.key === 'N' || e.key === 'n')) {
 			e.preventDefault();
 			createDialogOpen = true;
 			return;
@@ -614,10 +614,10 @@
 							</DropdownMenu.Root>
 						{/if}
 
-						<Button variant="ghost" size="icon" class="h-7 w-7" onclick={() => createDialogOpen = true} title="New worktree (Ctrl+Shift+E)">
+						<Button variant="ghost" size="icon" class="h-7 w-7" onclick={() => createDialogOpen = true} title="New worktree (Ctrl+Shift+N)">
 							<PlusIcon class="h-4 w-4" />
 						</Button>
-						<Kbd class="hidden lg:inline-flex h-4 min-w-4 text-[10px] opacity-50" title="Ctrl+Shift+E — new worktree">⌃⇧E</Kbd>
+						<Kbd class="hidden lg:inline-flex h-4 min-w-4 text-[10px] opacity-50" title="Ctrl+Shift+N — new worktree">⌃⇧N</Kbd>
 					{/if}
 
 					<div class="ml-auto">
@@ -747,7 +747,7 @@
 							</div>
 						{:else}
 							<div class="flex min-h-0 flex-1 flex-col overflow-hidden">
-								<Terminal bind:this={terminalRef} />
+								<Terminal bind:this={terminalRef} chatInputEnabled={isPhone.current || $terminalChatInputEnabled} />
 							</div>
 						{/if}
 					</div>
@@ -765,11 +765,11 @@
 							<PanelResizeHandle orientation={$terminalLayout === 'bottom' ? 'horizontal' : 'vertical'} onresize={handleTerminalResize} />
 							{#if $terminalLayout === 'right'}
 								<div class="flex h-full shrink-0 flex-col overflow-hidden" style="width: {effectiveTerminalWidth}px">
-									<Terminal bind:this={terminalRef} />
+									<Terminal bind:this={terminalRef} chatInputEnabled={isPhone.current || $terminalChatInputEnabled} />
 								</div>
 							{:else}
 								<div class="shrink-0 overflow-hidden" style="height: {effectiveTerminalHeight}px">
-									<Terminal bind:this={terminalRef} />
+									<Terminal bind:this={terminalRef} chatInputEnabled={isPhone.current || $terminalChatInputEnabled} />
 								</div>
 							{/if}
 						{/if}

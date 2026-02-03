@@ -32,6 +32,16 @@
 		}
 	}
 
+	/** Trigger xterm's onData handler as if user typed (for TUI apps that need it). */
+	export function triggerInput(data: string) {
+		if (ws?.readyState === WebSocket.OPEN) {
+			// Send each character individually with a tiny delay for TUI apps
+			for (let i = 0; i < data.length; i++) {
+				ws.send(data[i]);
+			}
+		}
+	}
+
 	onMount(() => {
 		initTerminal();
 		return () => cleanup();
@@ -135,12 +145,16 @@
 		// Prevent Escape (and other terminal keys) from bubbling to page-level
 		// handlers — e.g. bits-ui dialogs that close on Escape. xterm still
 		// processes the key normally because we return true.
-		// When readOnly is true, block all keyboard input except copy (Ctrl+C on selection).
+		// When readOnly is true, block all keyboard input except copy and Escape.
 		term.attachCustomKeyEventHandler((event: KeyboardEvent) => {
 			if (event.key === 'Escape') event.stopPropagation();
 			if (readOnlyRef.value) {
 				// Allow Ctrl+C (copy) and Ctrl+Shift+C
 				if (event.ctrlKey && (event.key === 'c' || event.key === 'C')) {
+					return true;
+				}
+				// Allow Escape (important for Claude Code and other TUI apps)
+				if (event.key === 'Escape') {
 					return true;
 				}
 				// Block all other keyboard input
