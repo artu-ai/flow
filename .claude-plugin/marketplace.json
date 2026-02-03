@@ -7,8 +7,13 @@
   "plugins": [
     {
       "name": "flow",
-      "source": "./flow",
+      "source": "./plugins/flow",
       "description": "Allows you to create and manage linear issues and github pr requests according to company best practices."
+    },
+    {
+      "name": "dashboard",
+      "source": "./plugins/dashboard",
+      "description": "Web-based development dashboard for managing git worktrees, editing files, viewing diffs, and running terminal sessions."
     }
   ]
 }

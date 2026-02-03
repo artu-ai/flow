@@ -1,0 +1,8 @@
+{
+  "name": "dashboard",
+  "description": "Web-based development dashboard for managing git worktrees, editing files, viewing diffs, and running terminal sessions.",
+  "version": "1.0.0",
+  "author": {
+    "name": "agutier6"
+  }
+}
