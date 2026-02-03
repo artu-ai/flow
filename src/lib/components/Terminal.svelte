@@ -125,24 +125,46 @@
     ),
   );
 
-  function destroyAllSessions() {
-    for (const [, ids] of Object.entries($terminalSessions)) {
-      for (const sid of ids) {
-        navigator.sendBeacon(
-          "/api/terminal/sessions",
-          new Blob([JSON.stringify({ id: sid, _method: "DELETE" })], {
-            type: "application/json",
-          }),
-        );
+  /** Fetch existing terminal sessions from server and restore them. */
+  async function restoreSessions() {
+    try {
+      const res = await fetch("/api/terminal/sessions");
+      const sessions: { id: string; worktree: string; createdAt: string }[] = await res.json();
+
+      // Group sessions by worktree
+      const byWorktree: Record<string, string[]> = {};
+      for (const session of sessions) {
+        if (!byWorktree[session.worktree]) {
+          byWorktree[session.worktree] = [];
+        }
+        byWorktree[session.worktree].push(session.id);
+        // Assign label if not already set
+        if (!sessionLabels[session.id]) {
+          const label = nextLabel(session.worktree);
+          sessionLabels[session.id] = `Terminal ${label}`;
+        }
       }
+
+      // Update stores
+      terminalSessions.set(byWorktree);
+
+      // Set active session for each worktree (first session if not already set)
+      activeTerminalSession.update((current) => {
+        const updated = { ...current };
+        for (const [worktree, ids] of Object.entries(byWorktree)) {
+          if (!updated[worktree] && ids.length > 0) {
+            updated[worktree] = ids[0];
+          }
+        }
+        return updated;
+      });
+    } catch {
+      // Server not available, ignore
     }
-    terminalSessions.set({});
-    activeTerminalSession.set({});
   }
 
   onMount(() => {
-    window.addEventListener("unload", destroyAllSessions);
-    return () => window.removeEventListener("unload", destroyAllSessions);
+    restoreSessions();
   });
 
   let error: string | null = $state(null);

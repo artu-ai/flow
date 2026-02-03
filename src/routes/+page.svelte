@@ -42,7 +42,8 @@
 
 	onMount(() => {
 		function onBeforeUnload(e: BeforeUnloadEvent) {
-			if (Object.values($terminalSessions).some((ids) => ids.length > 0) || Object.values($hasUnsavedChanges).some(Boolean)) {
+			// Only block unload for unsaved editor changes (terminal sessions persist across reloads)
+			if (Object.values($hasUnsavedChanges).some(Boolean)) {
 				e.preventDefault();
 			}
 		}
