@@ -92,7 +92,7 @@ export const linterConfig = localPersistedWritable<LinterConfig>('dashboard:lint
 	eslint: true,
 	ruff: true,
 });
-export const linearApiKey = localPersistedWritable<string | null>('dashboard:linearApiKey', null);
+export const linearApiKey = writable<string | null>(null);
 
 export interface CompletionConfig {
 	activeProvider: 'ollama' | 'claude' | null;
@@ -100,14 +100,44 @@ export interface CompletionConfig {
 	claude: { apiKey: string; model: string };
 }
 
-export const completionConfig = localPersistedWritable<CompletionConfig>(
-	'dashboard:completionConfig',
-	{
-		activeProvider: null,
-		ollama: { url: 'http://localhost:11434', model: '' },
-		claude: { apiKey: '', model: 'claude-3-5-haiku-20241022' },
+export const completionConfig = writable<CompletionConfig>({
+	activeProvider: null,
+	ollama: { url: 'http://localhost:11434', model: '' },
+	claude: { apiKey: '', model: 'claude-3-5-haiku-20241022' },
+});
+
+export async function loadGlobalConfig(): Promise<void> {
+	try {
+		const res = await fetch('/api/config');
+		const config = await res.json();
+		if (config.linear?.apiKey) {
+			linearApiKey.set(config.linear.apiKey);
+		}
+		if (config.completion) {
+			completionConfig.set(config.completion);
+		}
+	} catch {
+		// Server not available — keep defaults
 	}
-);
+}
+
+export async function saveGlobalConfig(): Promise<void> {
+	let linear: { apiKey: string | null } = { apiKey: null };
+	let completion: CompletionConfig | undefined;
+
+	linearApiKey.subscribe((v) => { linear = { apiKey: v }; })();
+	completionConfig.subscribe((v) => { completion = v; })();
+
+	try {
+		await fetch('/api/config', {
+			method: 'PUT',
+			headers: { 'Content-Type': 'application/json' },
+			body: JSON.stringify({ linear, completion }),
+		});
+	} catch {
+		// Silent failure
+	}
+}
 
 /** Which panel was last focused per worktree path: 'editor' or 'terminal' */
 export const focusedPanel = writable<Record<string, 'editor' | 'terminal'>>({});

@@ -2,8 +2,12 @@ import { json } from '@sveltejs/kit';
 import type { RequestHandler } from './$types';
 import { listWorktrees, createWorktree, removeWorktree } from '$lib/server/git';
 
+function getProjectRoot(): string {
+	return process.env.PROJECT_ROOT || process.cwd();
+}
+
 export const GET: RequestHandler = async ({ url }) => {
-	const repoPath = url.searchParams.get('repo') || process.cwd();
+	const repoPath = url.searchParams.get('repo') || getProjectRoot();
 	try {
 		const worktrees = await listWorktrees(repoPath);
 		return json(worktrees);
@@ -29,7 +33,7 @@ export const POST: RequestHandler = async ({ request }) => {
 	const sourceWorktreePath = typeof body.sourceWorktreePath === 'string' ? body.sourceWorktreePath : undefined;
 
 	try {
-		const result = await createWorktree(process.cwd(), branchName, sourceBranch, sourceWorktreePath);
+		const result = await createWorktree(getProjectRoot(), branchName, sourceBranch, sourceWorktreePath);
 		return json(result);
 	} catch (e) {
 		return json({ error: e instanceof Error ? e.message : String(e) }, { status: 500 });
@@ -45,7 +49,7 @@ export const DELETE: RequestHandler = async ({ request }) => {
 	}
 
 	try {
-		await removeWorktree(process.cwd(), worktreePath);
+		await removeWorktree(getProjectRoot(), worktreePath);
 		return json({ ok: true });
 	} catch (e) {
 		return json({ error: e instanceof Error ? e.message : String(e) }, { status: 500 });

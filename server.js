@@ -1,14 +1,21 @@
 import { createServer } from 'node:http';
-import { handler } from './build/handler.js';
+import { fileURLToPath } from 'node:url';
+import { dirname, join } from 'node:path';
 import { WebSocketServer } from 'ws';
 import { ptyManager } from './pty-manager.js';
 import { fileWatcher } from './file-watcher.js';
 
+const __dirname = dirname(fileURLToPath(import.meta.url));
+const { handler } = await import(join(__dirname, 'build', 'handler.js'));
+
 const PORT = parseInt(process.env.PORT || '3420', 10);
 const HOST = process.env.HOST || '127.0.0.1';
 
-const server = createServer(handler);
+if (process.env.PROJECT_ROOT) {
+	console.log(`PROJECT_ROOT: ${process.env.PROJECT_ROOT}`);
+}
 
+const server = createServer(handler);
 const wss = new WebSocketServer({ noServer: true });
 const watchWss = new WebSocketServer({ noServer: true });
 
@@ -56,8 +63,6 @@ wss.on('connection', (ws, _req, sessionId) => {
 
 	ws.on('message', (msg) => {
 		const data = msg.toString();
-
-		// Handle resize messages
 		try {
 			const parsed = JSON.parse(data);
 			if (parsed.type === 'resize' && parsed.cols && parsed.rows) {
@@ -67,7 +72,6 @@ wss.on('connection', (ws, _req, sessionId) => {
 		} catch {
 			// Not JSON, treat as terminal input
 		}
-
 		session.pty.write(data);
 	});
 
@@ -92,4 +96,8 @@ process.on('SIGINT', shutdown);
 
 server.listen(PORT, HOST, () => {
 	console.log(`Dashboard running at http://${HOST}:${PORT}`);
+	// Notify parent process (daemon) that we're ready
+	if (process.send) {
+		process.send({ type: 'ready', port: PORT });
+	}
 });

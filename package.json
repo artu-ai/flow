@@ -1,14 +1,27 @@
 {
-  "name": "dashboard",
+  "name": "@artu-ai/flow",
   "version": "1.0.0",
-  "private": true,
+  "description": "Development dashboard daemon for managing project workspaces",
   "type": "module",
+  "bin": {
+    "flow": "./cli.js"
+  },
+  "files": [
+    "cli.js",
+    "daemon.js",
+    "server.js",
+    "pty-manager.js",
+    "file-watcher.js",
+    "build/",
+    "plugins/"
+  ],
   "scripts": {
     "dev": "vite dev",
     "build": "vite build",
     "preview": "vite preview",
     "start": "node server.js",
-    "check": "svelte-kit sync && svelte-check --tsconfig ./tsconfig.json"
+    "check": "svelte-kit sync && svelte-check --tsconfig ./tsconfig.json",
+    "prepublishOnly": "npm run build"
   },
   "dependencies": {
     "@biomejs/js-api": "^4.0.0",

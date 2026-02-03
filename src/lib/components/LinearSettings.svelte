@@ -2,7 +2,7 @@
 	import * as Dialog from '$lib/components/ui/dialog';
 	import { Button } from '$lib/components/ui/button';
 	import { Input } from '$lib/components/ui/input';
-	import { linearApiKey } from '$lib/stores';
+	import { linearApiKey, saveGlobalConfig } from '$lib/stores';
 	import LoaderCircleIcon from '@lucide/svelte/icons/loader-circle';
 
 	let { open = $bindable(false) }: { open: boolean } = $props();
@@ -59,6 +59,7 @@
 			const data = await res.json();
 			if (data.valid) {
 				linearApiKey.set(apiKeyInput.trim());
+				saveGlobalConfig();
 				connectedName = data.name ?? 'Unknown';
 				apiKeyInput = '';
 			} else {
@@ -74,6 +75,7 @@
 	function handleDisconnect() {
 		linearApiKey.set(null);
 		connectedName = null;
+		saveGlobalConfig();
 	}
 </script>
 

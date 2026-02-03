@@ -1,7 +1,7 @@
 <script lang="ts">
 	import '../app.css';
 	import { Toaster } from '$lib/components/ui/sonner';
-	import { currentWorktree, worktrees, selectedWorktreePath } from '$lib/stores';
+	import { currentWorktree, worktrees, selectedWorktreePath, loadGlobalConfig } from '$lib/stores';
 	import type { Worktree } from '$lib/stores';
 	import { onMount } from 'svelte';
 
@@ -26,6 +26,7 @@
 	});
 
 	onMount(() => {
+		loadGlobalConfig();
 		fetchWorktrees();
 	});
 </script>

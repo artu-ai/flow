@@ -1,0 +1,200 @@
+name: Release
+
+on:
+  workflow_dispatch:
+    inputs:
+      bump_type:
+        description: "Version bump type"
+        required: true
+        type: choice
+        options:
+          - patch
+          - minor
+          - major
+      prerelease:
+        description: "Release as prerelease (beta)"
+        required: false
+        type: boolean
+        default: false
+      version_override:
+        description: "Override version (e.g., 1.0.0) - leave empty for auto-calculation"
+        required: false
+        type: string
+
+jobs:
+  build:
+    if: github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    outputs:
+      version: ${{ steps.calculate-version.outputs.version }}
+
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+
+      - name: Calculate next version
+        id: calculate-version
+        env:
+          BUMP_TYPE: ${{ inputs.bump_type }}
+          IS_PRERELEASE: ${{ inputs.prerelease }}
+          VERSION_OVERRIDE: ${{ inputs.version_override }}
+        run: |
+          if [ -n "$VERSION_OVERRIDE" ]; then
+            echo "Using override version: $VERSION_OVERRIDE"
+            echo "version=$VERSION_OVERRIDE" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+
+          LATEST_TAG=$(git tag -l 'v*' --sort=-v:refname | head -n1)
+          CURRENT_VERSION="${LATEST_TAG#v}"
+          CURRENT_VERSION="${CURRENT_VERSION:-0.0.0}"
+
+          echo "Current version from git tags: $CURRENT_VERSION"
+
+          NEW_VERSION=$(CURRENT_VERSION="$CURRENT_VERSION" BUMP_TYPE="$BUMP_TYPE" IS_PRERELEASE="$IS_PRERELEASE" node -e "
+            const currentVersion = process.env.CURRENT_VERSION || '0.0.0';
+            const bumpType = process.env.BUMP_TYPE;
+            const isPrerelease = process.env.IS_PRERELEASE === 'true';
+
+            function parseVersion(v) {
+              const match = v.match(/^(\d+)\.(\d+)\.(\d+)(?:-(.+))?\$/);
+              if (!match) return { major: 0, minor: 0, patch: 0 };
+              return {
+                major: parseInt(match[1], 10),
+                minor: parseInt(match[2], 10),
+                patch: parseInt(match[3], 10)
+              };
+            }
+
+            const parsed = parseVersion(currentVersion);
+
+            switch (bumpType) {
+              case 'major':
+                parsed.major++;
+                parsed.minor = 0;
+                parsed.patch = 0;
+                break;
+              case 'minor':
+                parsed.minor++;
+                parsed.patch = 0;
+                break;
+              case 'patch':
+                parsed.patch++;
+                break;
+            }
+
+            let newVersion = parsed.major + '.' + parsed.minor + '.' + parsed.patch;
+            if (isPrerelease) {
+              newVersion += '-beta.0';
+            }
+
+            console.log(newVersion);
+          ")
+
+          echo "New version will be: $NEW_VERSION"
+          echo "version=$NEW_VERSION" >> "$GITHUB_OUTPUT"
+
+      - name: Validate version
+        env:
+          VERSION: ${{ steps.calculate-version.outputs.version }}
+        run: |
+          if [[ ! "$VERSION" =~ ^[0-9]+\.[0-9]+\.[0-9]+(-[a-zA-Z0-9.]+)?$ ]]; then
+            echo "Invalid version format: $VERSION"
+            exit 1
+          fi
+          echo "Version format valid: $VERSION"
+
+      - name: Check if tag already exists
+        env:
+          VERSION: ${{ steps.calculate-version.outputs.version }}
+        run: |
+          if git rev-parse "v$VERSION" >/dev/null 2>&1; then
+            echo "Tag v$VERSION already exists!"
+            exit 1
+          fi
+          echo "Tag v$VERSION is available"
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Set version
+        env:
+          VERSION: ${{ steps.calculate-version.outputs.version }}
+        run: npm version "$VERSION" --no-git-tag-version --allow-same-version
+
+      - name: Build
+        run: npm run build
+
+      - name: Upload build artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: flow-package
+          path: |
+            build/
+            cli.js
+            daemon.js
+            server.js
+            pty-manager.js
+            file-watcher.js
+            plugins/
+            package.json
+            package-lock.json
+
+  publish-npm:
+    needs: build
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      id-token: write
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Download build artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: flow-package
+
+      - name: Setup Node.js for npm
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          registry-url: "https://registry.npmjs.org"
+
+      - name: Update npm
+        run: npm install -g npm@latest
+
+      - name: Publish to npm
+        run: npm publish --access public
+
+  create-release:
+    needs: [build, publish-npm]
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Create and push tag
+        env:
+          VERSION: ${{ needs.build.outputs.version }}
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git tag -a "v$VERSION" -m "Release @artu-ai/flow@$VERSION"
+          git push origin "v$VERSION"
+
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: v${{ needs.build.outputs.version }}
+          name: v${{ needs.build.outputs.version }}
+          generate_release_notes: true
+          prerelease: ${{ inputs.prerelease }}

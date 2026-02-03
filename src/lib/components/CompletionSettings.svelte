@@ -6,7 +6,7 @@
 	import * as ScrollArea from '$lib/components/ui/scroll-area';
 	import { Button } from '$lib/components/ui/button';
 	import { Input } from '$lib/components/ui/input';
-	import { completionConfig } from '$lib/stores';
+	import { completionConfig, saveGlobalConfig } from '$lib/stores';
 	import LoaderCircleIcon from '@lucide/svelte/icons/loader-circle';
 	import ChevronsUpDownIcon from '@lucide/svelte/icons/chevrons-up-down';
 	import CheckIcon from '@lucide/svelte/icons/check';
@@ -131,6 +131,7 @@
 			ollama: { url: ollamaUrl.trim(), model: ollamaSelectedModel },
 		}));
 		ollamaConnected = true;
+		saveGlobalConfig();
 	}
 
 	async function handleClaudeValidate() {
@@ -172,6 +173,7 @@
 		}));
 		claudeConnected = true;
 		claudeApiKey = '';
+		saveGlobalConfig();
 	}
 
 	function handleDisconnect() {
@@ -183,6 +185,7 @@
 		claudeConnected = false;
 		ollamaModels = [];
 		claudeModels = [];
+		saveGlobalConfig();
 	}
 
 	let isConnected = $derived($completionConfig.activeProvider !== null);

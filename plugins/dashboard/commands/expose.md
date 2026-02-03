@@ -5,7 +5,7 @@ disable-model-invocation: true
 
 # Dashboard Expose
 
-!`bash "$CLAUDE_PLUGIN_ROOT/scripts/expose.sh" 2>&1`
+!`flow expose 2>&1`
 
 Report the result above. If STATUS is:
 - **EXPOSED**: Confirm remote access is active and show the Tailscale URL from the serve status.

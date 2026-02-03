@@ -5,7 +5,7 @@ disable-model-invocation: true
 
 # Dashboard Stop
 
-!`bash "$CLAUDE_PLUGIN_ROOT/scripts/stop.sh" 2>&1`
+!`flow stop 2>&1`
 
 Report the result above. If STATUS is:
 - **STOPPED**: Confirm the server was stopped.
