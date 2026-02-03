@@ -19,7 +19,7 @@ npm install -g @artu-ai/flow
 Or from within Claude Code:
 
 ```
-/dashboard/setup
+/dashboard:setup
 ```
 
 ### Requirements

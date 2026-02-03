@@ -1,6 +1,7 @@
 ---
 description: Remove Tailscale Serve exposure (keep server running locally)
 disable-model-invocation: true
+allowed-tools: Bash(flow unexpose:*)
 ---
 
 # Dashboard Unexpose
