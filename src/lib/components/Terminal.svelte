@@ -707,7 +707,7 @@
   </div>
   {#if currentSessions.length > 0 && chatInputActive}
     <div
-      class="shrink-0 border-t border-border bg-muted/30 p-2 flex flex-col gap-2"
+      class="shrink-0 border-t border-border bg-muted/30 p-2 flex flex-col gap-2 {isPhone.current ? 'pb-14' : ''}"
     >
       <textarea
         bind:this={chatTextareaRef}
@@ -787,8 +787,24 @@
     scrollbar-color: var(--border) transparent;
   }
   @media (pointer: coarse) {
+    :global(.xterm) {
+      touch-action: pan-y !important;
+    }
     :global(.xterm-viewport) {
       scrollbar-width: auto;
+      touch-action: pan-y !important;
+      -webkit-overflow-scrolling: touch;
+    }
+    :global(.xterm-screen) {
+      touch-action: pan-y !important;
+      pointer-events: none !important;
+    }
+    :global(.xterm-screen canvas) {
+      touch-action: pan-y !important;
+      pointer-events: none !important;
+    }
+    :global(.xterm-helper-textarea) {
+      pointer-events: none !important;
     }
   }
   :global(.xterm-viewport::-webkit-scrollbar) {
