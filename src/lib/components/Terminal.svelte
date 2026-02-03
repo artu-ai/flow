@@ -298,6 +298,11 @@
 		scrollbar-width: thin;
 		scrollbar-color: var(--border) transparent;
 	}
+	@media (pointer: coarse) {
+		:global(.xterm-viewport) {
+			scrollbar-width: auto;
+		}
+	}
 	:global(.xterm-viewport::-webkit-scrollbar) {
 		width: 8px;
 	}

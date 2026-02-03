@@ -154,6 +154,9 @@ export async function saveGlobalConfig(): Promise<void> {
 	}
 }
 
+/** Active panel on phone layout: which single panel is visible */
+export const activePhonePanel = writable<'editor' | 'terminal'>('editor');
+
 /** Which panel was last focused per worktree path: 'editor' or 'terminal' */
 export const focusedPanel = writable<Record<string, 'editor' | 'terminal'>>({});
 

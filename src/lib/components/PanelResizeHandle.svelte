@@ -42,14 +42,18 @@
 		aria-orientation="vertical"
 		tabIndex={-1}
 		onpointerdown={onpointerdown}
-		class="flex w-2 shrink-0 cursor-col-resize items-center justify-center border-l-2 border-border/50 hover:bg-sidebar-border/50 active:bg-ring/30 transition-colors {dragging ? 'bg-ring/30' : ''}"
-	></div>
+		class="flex w-2 pointer-coarse:w-4 shrink-0 cursor-col-resize items-center justify-center border-l-2 border-border/50 hover:bg-sidebar-border/50 active:bg-ring/30 transition-colors touch-action-none {dragging ? 'bg-ring/30' : ''}"
+	>
+		<div class="h-8 w-0.5 rounded-full bg-border/60"></div>
+	</div>
 {:else}
 	<div
 		role="separator"
 		aria-orientation="horizontal"
 		tabIndex={-1}
 		onpointerdown={onpointerdown}
-		class="flex h-2 shrink-0 cursor-row-resize items-center justify-center border-t-2 border-border/50 hover:bg-sidebar-border/50 active:bg-ring/30 transition-colors {dragging ? 'bg-ring/30' : ''}"
-	></div>
+		class="flex h-2 pointer-coarse:h-4 shrink-0 cursor-row-resize items-center justify-center border-t-2 border-border/50 hover:bg-sidebar-border/50 active:bg-ring/30 transition-colors touch-action-none {dragging ? 'bg-ring/30' : ''}"
+	>
+		<div class="w-8 h-0.5 rounded-full bg-border/60"></div>
+	</div>
 {/if}

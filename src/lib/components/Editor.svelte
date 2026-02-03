@@ -60,17 +60,25 @@
 			},
 		});
 
+		const isTouchDevice = window.matchMedia('(pointer: coarse)').matches;
+
 		editor = monaco.editor.create(editorContainer, {
 			value: '',
 			language: 'plaintext',
 			theme: 'dashboard-dark',
 			automaticLayout: true,
 			minimap: { enabled: false },
-			fontSize: 13,
+			fontSize: isTouchDevice ? 14 : 13,
 			lineNumbers: 'on',
 			scrollBeyondLastLine: false,
 			padding: { top: 8 },
 			inlineSuggest: { enabled: true },
+			...(isTouchDevice && {
+				scrollbar: {
+					verticalScrollbarSize: 14,
+					horizontalScrollbarSize: 14,
+				},
+			}),
 		});
 
 		editor.addCommand(monaco.KeyMod.CtrlCmd | monaco.KeyCode.KeyS, () => {

@@ -32,6 +32,6 @@
 </script>
 
 <Toaster position="top-right" />
-<div class="flex h-screen flex-col overflow-hidden">
+<div class="flex h-dvh flex-col overflow-hidden" style="overscroll-behavior: none">
 	{@render children()}
 </div>
