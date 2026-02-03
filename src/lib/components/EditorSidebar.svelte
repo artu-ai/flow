@@ -26,10 +26,21 @@
 
 	/** Toggle sidebar to a specific tab. If already open on that tab, close it. */
 	export function focusTab(tab: SidebarTab) {
-		if (sidebar.open && activeTab === tab) {
-			sidebar.setOpen(false);
+		const isOpen = sidebar.isMobile ? sidebar.openMobile : sidebar.open;
+		if (isOpen && activeTab === tab) {
+			if (sidebar.isMobile) {
+				sidebar.setOpenMobile(false);
+			} else {
+				sidebar.setOpen(false);
+			}
 		} else {
-			if (!sidebar.open) sidebar.setOpen(true);
+			if (!isOpen) {
+				if (sidebar.isMobile) {
+					sidebar.setOpenMobile(true);
+				} else {
+					sidebar.setOpen(true);
+				}
+			}
 			switchTab(tab);
 		}
 	}
