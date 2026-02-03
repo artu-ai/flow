@@ -2,6 +2,10 @@
   "name": "@artu-ai/flow",
   "version": "1.0.0",
   "description": "Development dashboard daemon for managing project workspaces",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/artu-ai/flow"
+  },
   "type": "module",
   "bin": {
     "flow": "./cli.js"
