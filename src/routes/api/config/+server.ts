@@ -41,7 +41,7 @@ async function writeConfig(config: FlowConfig): Promise<void> {
 
 export const GET: RequestHandler = async () => {
 	const config = await readConfig();
-	return json(config);
+	return json({ ...config, projectRoot: process.env.PROJECT_ROOT || process.cwd() });
 };
 
 export const PUT: RequestHandler = async ({ request }) => {

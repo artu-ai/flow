@@ -3,7 +3,7 @@
  * Stored on globalThis to ensure a single instance across module reloads.
  */
 
-import { watch } from 'node:fs';
+import { watch, existsSync } from 'node:fs';
 import { dirname } from 'node:path';
 
 class FileWatcher {
@@ -17,36 +17,49 @@ class FileWatcher {
 	 * @param {import('ws').WebSocket} ws
 	 */
 	subscribe(root, ws) {
+		if (!existsSync(root)) {
+			console.error(`File watcher: path does not exist, skipping: ${root}`);
+			ws.close(4004, 'Path does not exist');
+			return;
+		}
+
 		let entry = this.roots.get(root);
 
 		if (!entry) {
 			const clients = new Set();
 			const debounceTimers = new Map();
 
-			const watcher = watch(root, { recursive: true }, (_event, filename) => {
-				if (!filename) return;
-				if (filename.startsWith('.git/') || filename.startsWith('.git\\') || filename === '.git') return;
+			let watcher;
+			try {
+				watcher = watch(root, { recursive: true }, (_event, filename) => {
+					if (!filename) return;
+					if (filename.startsWith('.git/') || filename.startsWith('.git\\') || filename === '.git') return;
 
-				const dir = dirname(filename);
-				const normalizedDir = dir === '.' ? '.' : dir.replace(/\\/g, '/');
+					const dir = dirname(filename);
+					const normalizedDir = dir === '.' ? '.' : dir.replace(/\\/g, '/');
 
-				if (debounceTimers.has(normalizedDir)) {
-					clearTimeout(debounceTimers.get(normalizedDir));
-				}
+					if (debounceTimers.has(normalizedDir)) {
+						clearTimeout(debounceTimers.get(normalizedDir));
+					}
 
-				debounceTimers.set(
-					normalizedDir,
-					setTimeout(() => {
-						debounceTimers.delete(normalizedDir);
-						const msg = JSON.stringify({ type: 'change', dir: normalizedDir });
-						for (const client of clients) {
-							if (client.readyState === client.OPEN) {
-								client.send(msg);
+					debounceTimers.set(
+						normalizedDir,
+						setTimeout(() => {
+							debounceTimers.delete(normalizedDir);
+							const msg = JSON.stringify({ type: 'change', dir: normalizedDir });
+							for (const client of clients) {
+								if (client.readyState === client.OPEN) {
+									client.send(msg);
+								}
 							}
-						}
-					}, 200)
-				);
-			});
+						}, 200)
+					);
+				});
+			} catch (err) {
+				console.error(`File watcher: failed to watch ${root}:`, err.message);
+				ws.close(4004, 'Failed to watch path');
+				return;
+			}
 
 			watcher.on('error', (err) => {
 				console.error(`File watcher error for ${root}:`, err.message);

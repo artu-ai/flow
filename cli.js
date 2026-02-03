@@ -15,7 +15,7 @@
 
 import { createConnection } from 'node:net';
 import { fork, execFileSync } from 'node:child_process';
-import { existsSync, createWriteStream, mkdirSync, readFileSync } from 'node:fs';
+import { existsSync, readFileSync } from 'node:fs';
 import { homedir } from 'node:os';
 import { join, resolve, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -24,7 +24,6 @@ const __dirname = dirname(fileURLToPath(import.meta.url));
 const DAEMON_JS = join(__dirname, 'daemon.js');
 const FLOW_DIR = join(homedir(), '.flow');
 const SOCK_PATH = join(FLOW_DIR, 'daemon.sock');
-const LOG_PATH = join(FLOW_DIR, 'daemon.log');
 
 // ─── Arg parsing ─────────────────────────────────────────────────────
 
@@ -74,10 +73,10 @@ function isDaemonRunning() {
 async function ensureDaemon() {
 	if (await isDaemonRunning()) return;
 
-	// Fork daemon detached
+	// Fork daemon detached — daemon writes its own log file directly
 	const child = fork(DAEMON_JS, [], {
 		detached: true,
-		stdio: ['ignore', 'pipe', 'pipe', 'ipc'],
+		stdio: ['ignore', 'ignore', 'ignore', 'ipc'],
 	});
 
 	// Wait for the daemon to signal readiness
@@ -97,12 +96,6 @@ async function ensureDaemon() {
 			clearTimeout(timeout);
 			reject(new Error(`Daemon exited with code ${code}`));
 		});
-
-		// Pipe daemon output to log file
-		mkdirSync(FLOW_DIR, { recursive: true });
-		const logStream = createWriteStream(LOG_PATH, { flags: 'a' });
-		if (child.stdout) child.stdout.pipe(logStream);
-		if (child.stderr) child.stderr.pipe(logStream);
 	});
 
 	// Detach so CLI can exit
@@ -139,6 +132,8 @@ async function cmdOpen() {
 			execFileSync('open', [res.url], { stdio: 'ignore' });
 		} catch { /* ignore */ }
 	}
+
+	process.exit(0);
 }
 
 async function cmdList() {

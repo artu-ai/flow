@@ -110,6 +110,21 @@ export async function loadGlobalConfig(): Promise<void> {
 	try {
 		const res = await fetch('/api/config');
 		const config = await res.json();
+
+		// Detect project change and clear stale session state
+		if (browser && config.projectRoot) {
+			const storedRoot = localStorage.getItem('dashboard:projectRoot');
+			if (storedRoot && storedRoot !== config.projectRoot) {
+				const sessionKeys: string[] = [];
+				for (let i = 0; i < sessionStorage.length; i++) {
+					const key = sessionStorage.key(i);
+					if (key?.startsWith('dashboard:')) sessionKeys.push(key);
+				}
+				for (const key of sessionKeys) sessionStorage.removeItem(key);
+			}
+			localStorage.setItem('dashboard:projectRoot', config.projectRoot);
+		}
+
 		if (config.linear?.apiKey) {
 			linearApiKey.set(config.linear.apiKey);
 		}

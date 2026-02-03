@@ -321,8 +321,9 @@
 				variant="secondary"
 				onclick={createSession}
 				disabled={!$currentWorktree}
+				class="max-w-full"
 			>
-				Open Terminal{$currentWorktree ? ` in ${$currentWorktree.branch}` : ''}
+				<span class="truncate">Open Terminal{$currentWorktree ? ` in ${$currentWorktree.branch}` : ''}</span>
 			</Button>
 			{#if error}
 				<p class="text-xs text-destructive max-w-64 text-center">{error}</p>

@@ -389,8 +389,8 @@
 					<Separator orientation="vertical" class="me-2 data-[orientation=vertical]:h-4" />
 
 					{#if orderedWorktrees.length > 0}
-						<Tabs.Root value={$currentWorktree?.path ?? ''} onValueChange={handleWorktreeChange}>
-							<div class="flex items-center">
+						<Tabs.Root value={$currentWorktree?.path ?? ''} onValueChange={handleWorktreeChange} class="min-w-0">
+							<div class="flex items-center min-w-0 overflow-x-auto scrollbar-none">
 								{#if orderedWorktrees.length > 1}
 									<Kbd class="mr-1 hidden sm:inline-flex h-4 min-w-4 text-[10px] opacity-50" title="Ctrl+[ — previous worktree">⌃[</Kbd>
 								{/if}
@@ -398,14 +398,14 @@
 									{#each orderedWorktrees as wt, i}
 										<Tabs.Trigger
 											value={wt.path}
-											class="group gap-1.5 pr-1.5 {dropIndex === i && dragIndex !== null && dragIndex < i ? 'border-r-2 border-r-primary' : ''} {dropIndex === i && dragIndex !== null && dragIndex > i ? 'border-l-2 border-l-primary' : ''}"
+											class="group gap-1.5 pr-1.5 max-w-48 {dropIndex === i && dragIndex !== null && dragIndex < i ? 'border-r-2 border-r-primary' : ''} {dropIndex === i && dragIndex !== null && dragIndex > i ? 'border-l-2 border-l-primary' : ''}"
 											draggable={true}
 											ondragstart={(e: DragEvent) => handleDragStart(e, i)}
 											ondragover={(e: DragEvent) => handleDragOver(e, i)}
 											ondrop={(e: DragEvent) => handleDrop(e, i)}
 											ondragend={handleDragEnd}
 										>
-											{wt.branch}
+											<span class="truncate">{wt.branch}</span>
 											{#if i < 9}
 												<Kbd class="ml-1 h-4 min-w-4 text-[10px] opacity-40">⌃{i + 1}</Kbd>
 											{/if}
