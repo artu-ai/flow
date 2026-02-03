@@ -136,22 +136,32 @@
 			textarea.addEventListener('focus', () => onfocus?.());
 		}
 
-		// Prevent Escape (and other terminal keys) from bubbling to page-level
-		// handlers — e.g. bits-ui dialogs that close on Escape. xterm still
-		// processes the key normally because we return true.
-		// When readOnly is true, block all keyboard input except copy and Escape.
+		// Custom key handler for special shortcuts and readOnly mode
+		// Note: Browser intercepts Escape, so we use Ctrl+E as alternative
 		term.attachCustomKeyEventHandler((event: KeyboardEvent) => {
-			if (event.key === 'Escape') event.stopPropagation();
+			// Ctrl+E = send Escape to terminal (browser intercepts actual Escape key)
+			if (event.ctrlKey && !event.shiftKey && event.key === 'e') {
+				event.preventDefault();
+				if (ws?.readyState === WebSocket.OPEN) {
+					ws.send('\x1b'); // Single Escape
+				}
+				return false;
+			}
+			// Ctrl+Shift+E = send double Escape (for vim/TUI apps that need it)
+			if (event.ctrlKey && event.shiftKey && (event.key === 'e' || event.key === 'E')) {
+				event.preventDefault();
+				if (ws?.readyState === WebSocket.OPEN) {
+					ws.send('\x1b\x1b'); // Double Escape
+				}
+				return false;
+			}
+
 			if (readOnlyRef.value) {
-				// Allow Ctrl+C (copy) and Ctrl+Shift+C
-				if (event.ctrlKey && (event.key === 'c' || event.key === 'C')) {
+				// Allow Cmd+C (copy) on Mac
+				if (event.metaKey && (event.key === 'c' || event.key === 'C')) {
 					return true;
 				}
-				// Allow Escape (important for Claude Code and other TUI apps)
-				if (event.key === 'Escape') {
-					return true;
-				}
-				// Block all other keyboard input
+				// Block all other keyboard input in readOnly mode
 				return false;
 			}
 			return true;
