@@ -9,7 +9,7 @@
 	import * as Tooltip from '$lib/components/ui/tooltip/index.js';
 	import { Button } from '$lib/components/ui/button';
 	import { Kbd } from '$lib/components/ui/kbd';
-	import { currentWorktree, worktrees, terminalSessions, activeTerminalSession, sidebarWidth, terminalWidth, terminalHeight, terminalLayout, hasUnsavedChanges, worktreeOrder, hiddenWorktrees, previousWorktreePath, focusedPanel, showGitIgnored, linearApiKey, completionConfig, linterConfig, formatterConfig, currentFile, gitFileStatuses, activePhonePanel, terminalChatInputEnabled } from '$lib/stores';
+	import { currentWorktree, worktrees, terminalSessions, activeTerminalSession, sidebarWidth, terminalWidth, terminalHeight, terminalLayout, hasUnsavedChanges, worktreeOrder, hiddenWorktrees, previousWorktreePath, focusedPanel, showGitIgnored, linearApiKey, completionConfig, linterConfig, formatterConfig, currentFile, gitFileStatuses, activePhonePanel, terminalChatInputEnabled, activeView } from '$lib/stores';
 	import type { Worktree } from '$lib/stores';
 	import { IsPhone, IsTablet } from '$lib/hooks/is-mobile.svelte.js';
 	import { useSidebar } from '$lib/components/ui/sidebar/context.svelte.js';
@@ -31,6 +31,7 @@
 	import TrashIcon from '@lucide/svelte/icons/trash-2';
 	import FileKeyIcon from '@lucide/svelte/icons/file-key';
 	import FolderTreeIcon from '@lucide/svelte/icons/folder-tree';
+	import GitBranchIcon from '@lucide/svelte/icons/git-branch';
 	import CodeIcon from '@lucide/svelte/icons/code';
 	import TerminalSquareIcon from '@lucide/svelte/icons/terminal';
 	import KeyboardIcon from '@lucide/svelte/icons/keyboard';
@@ -782,14 +783,21 @@
 				<nav class="fixed inset-x-0 bottom-0 z-40 flex h-12 items-center justify-around border-t border-border bg-background">
 					<button
 						class="flex flex-1 flex-col items-center justify-center gap-0.5 py-1 text-muted-foreground"
-						onclick={() => sidebar.setOpenMobile(true)}
+						onclick={() => { editorSidebarRef?.focusTab('files'); sidebar.setOpenMobile(true); }}
 					>
 						<FolderTreeIcon class="h-5 w-5" />
 						<span class="text-[10px]">Files</span>
 					</button>
 					<button
+						class="flex flex-1 flex-col items-center justify-center gap-0.5 py-1 text-muted-foreground"
+						onclick={() => { editorSidebarRef?.focusTab('changes'); sidebar.setOpenMobile(true); }}
+					>
+						<GitBranchIcon class="h-5 w-5" />
+						<span class="text-[10px]">Changes</span>
+					</button>
+					<button
 						class="flex flex-1 flex-col items-center justify-center gap-0.5 py-1 {$activePhonePanel === 'editor' ? 'text-foreground' : 'text-muted-foreground'}"
-						onclick={() => activePhonePanel.set('editor')}
+						onclick={() => { activePhonePanel.set('editor'); activeView.set('editor'); }}
 					>
 						<CodeIcon class="h-5 w-5" />
 						<span class="text-[10px]">Editor</span>

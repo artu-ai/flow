@@ -400,12 +400,8 @@
     // (Chrome intercepts the actual Escape key at browser level)
     if (e.ctrlKey && (e.key === "e" || e.key === "E")) {
       e.preventDefault();
-      if (e.shiftKey) {
-        sendEscape();
-        sendEscape();
-      } else {
-        sendEscape();
-      }
+      sendEscape();
+      if (e.shiftKey) sendEscape(); // Double escape with Shift
       return;
     }
 
