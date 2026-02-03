@@ -8,8 +8,10 @@
 	import * as Tooltip from '$lib/components/ui/tooltip/index.js';
 	import { Button } from '$lib/components/ui/button';
 	import { Kbd } from '$lib/components/ui/kbd';
-	import { currentWorktree, worktrees, terminalSessions, activeTerminalSession, sidebarWidth, terminalWidth, terminalHeight, terminalLayout, hasUnsavedChanges, worktreeOrder, previousWorktreePath, focusedPanel, showGitIgnored, linearApiKey, completionConfig, linterConfig, formatterConfig, currentFile, gitFileStatuses } from '$lib/stores';
+	import { currentWorktree, worktrees, terminalSessions, activeTerminalSession, sidebarWidth, terminalWidth, terminalHeight, terminalLayout, hasUnsavedChanges, worktreeOrder, previousWorktreePath, focusedPanel, showGitIgnored, linearApiKey, completionConfig, linterConfig, formatterConfig, currentFile, gitFileStatuses, activePhonePanel } from '$lib/stores';
 	import type { Worktree } from '$lib/stores';
+	import { IsPhone, IsTablet } from '$lib/hooks/is-mobile.svelte.js';
+	import { useSidebar } from '$lib/components/ui/sidebar/context.svelte.js';
 	import Editor from '$lib/components/Editor.svelte';
 	import Terminal from '$lib/components/Terminal.svelte';
 	import PanelResizeHandle from '$lib/components/PanelResizeHandle.svelte';
@@ -25,7 +27,14 @@
 	import PanelBottomIcon from '@lucide/svelte/icons/panel-bottom';
 	import EyeIcon from '@lucide/svelte/icons/eye';
 	import FileKeyIcon from '@lucide/svelte/icons/file-key';
+	import FolderTreeIcon from '@lucide/svelte/icons/folder-tree';
+	import CodeIcon from '@lucide/svelte/icons/code';
+	import TerminalSquareIcon from '@lucide/svelte/icons/terminal';
+	import ChevronDownIcon from '@lucide/svelte/icons/chevron-down';
 	import { onMount } from 'svelte';
+
+	const isPhone = new IsPhone();
+	const isTablet = new IsTablet();
 
 	onMount(() => {
 		function onBeforeUnload(e: BeforeUnloadEvent) {
@@ -298,15 +307,34 @@
 	}
 
 	const MIN_TERMINAL = 150;
+	const MIN_TERMINAL_TABLET = 120;
 	const MAX_TERMINAL = 800;
 
 	function handleTerminalResize(delta: number) {
+		const minT = isTablet.current ? MIN_TERMINAL_TABLET : MIN_TERMINAL;
 		if ($terminalLayout === 'right') {
-			terminalWidth.update((w) => Math.min(MAX_TERMINAL, Math.max(MIN_TERMINAL, w - delta)));
+			terminalWidth.update((w) => Math.min(MAX_TERMINAL, Math.max(minT, w - delta)));
 		} else {
-			terminalHeight.update((h) => Math.min(MAX_TERMINAL, Math.max(MIN_TERMINAL, h - delta)));
+			terminalHeight.update((h) => Math.min(MAX_TERMINAL, Math.max(minT, h - delta)));
 		}
 	}
+
+	// Constrain terminal dimensions on tablet to prevent it from dominating
+	let effectiveTerminalWidth = $derived.by(() => {
+		if (typeof window === 'undefined') return $terminalWidth;
+		if (isTablet.current) {
+			return Math.min($terminalWidth, window.innerWidth * 0.4);
+		}
+		return $terminalWidth;
+	});
+
+	let effectiveTerminalHeight = $derived.by(() => {
+		if (typeof window === 'undefined') return $terminalHeight;
+		if (isTablet.current) {
+			return Math.min($terminalHeight, window.innerHeight * 0.4);
+		}
+		return $terminalHeight;
+	});
 
 	function promptDeleteWorktree(e: MouseEvent, wt: Worktree) {
 		e.stopPropagation();
@@ -373,69 +401,104 @@
 
 <svelte:window onkeydown={handleKeydown} />
 
-<div class="flex h-full">
+<div class="flex h-full {isPhone.current ? 'pb-12' : ''}">
 	<Sidebar.Provider style="--sidebar-width: {$sidebarWidth}px">
 			<EditorSidebar bind:this={editorSidebarRef} onwidthchange={(w) => sidebarWidth.set(w)} />
 			<Sidebar.Inset class="flex flex-col overflow-hidden">
 				<header class="flex h-12 shrink-0 items-center gap-2 border-b border-border px-4">
-					<Tooltip.Root>
-						<Tooltip.Trigger>
-							{#snippet child({ props })}
-								<Sidebar.Trigger class="-ms-1" {...props} />
-							{/snippet}
-						</Tooltip.Trigger>
-						<Tooltip.Content side="bottom" class="flex items-center gap-1.5">Toggle sidebar <Kbd class="h-4 min-w-4 text-[10px]">⌃B</Kbd></Tooltip.Content>
-					</Tooltip.Root>
-					<Separator orientation="vertical" class="me-2 data-[orientation=vertical]:h-4" />
-
-					{#if orderedWorktrees.length > 0}
-						<Tabs.Root value={$currentWorktree?.path ?? ''} onValueChange={handleWorktreeChange} class="min-w-0">
-							<div class="flex items-center min-w-0 overflow-x-auto scrollbar-none">
-								{#if orderedWorktrees.length > 1}
-									<Kbd class="mr-1 hidden sm:inline-flex h-4 min-w-4 text-[10px] opacity-50" title="Ctrl+[ — previous worktree">⌃[</Kbd>
-								{/if}
-								<Tabs.List>
-									{#each orderedWorktrees as wt, i}
-										<Tabs.Trigger
-											value={wt.path}
-											class="group gap-1.5 pr-1.5 max-w-48 {dropIndex === i && dragIndex !== null && dragIndex < i ? 'border-r-2 border-r-primary' : ''} {dropIndex === i && dragIndex !== null && dragIndex > i ? 'border-l-2 border-l-primary' : ''}"
-											draggable={true}
-											ondragstart={(e: DragEvent) => handleDragStart(e, i)}
-											ondragover={(e: DragEvent) => handleDragOver(e, i)}
-											ondrop={(e: DragEvent) => handleDrop(e, i)}
-											ondragend={handleDragEnd}
-										>
-											<span class="truncate">{wt.branch}</span>
-											{#if i < 9}
-												<Kbd class="ml-1 h-4 min-w-4 text-[10px] opacity-40">⌃{i + 1}</Kbd>
-											{/if}
-											{#if !wt.isMain}
-												<button
-													class="ml-0.5 rounded-sm opacity-60 hover:opacity-100 hover:bg-muted-foreground/20"
-													onclick={(e) => promptDeleteWorktree(e, wt)}
-													disabled={deletingPath === wt.path}
-												>
-													{#if deletingPath === wt.path}
-														<LoaderCircleIcon class="h-3 w-3 animate-spin" />
-													{:else}
-														<XIcon class="h-3 w-3" />
-													{/if}
-												</button>
-											{/if}
-										</Tabs.Trigger>
-									{/each}
-								</Tabs.List>
-								{#if orderedWorktrees.length > 1}
-									<Kbd class="ml-1 hidden sm:inline-flex h-4 min-w-4 text-[10px] opacity-50" title="Ctrl+] — next worktree">⌃]</Kbd>
-								{/if}
-							</div>
-						</Tabs.Root>
+					{#if !isPhone.current}
+						<Tooltip.Root>
+							<Tooltip.Trigger>
+								{#snippet child({ props })}
+									<Sidebar.Trigger class="-ms-1" {...props} />
+								{/snippet}
+							</Tooltip.Trigger>
+							<Tooltip.Content side="bottom" class="flex items-center gap-1.5">Toggle sidebar <Kbd class="h-4 min-w-4 text-[10px]">⌃B</Kbd></Tooltip.Content>
+						</Tooltip.Root>
+						<Separator orientation="vertical" class="me-2 data-[orientation=vertical]:h-4" />
 					{/if}
 
-					<Button variant="ghost" size="icon" class="h-7 w-7" onclick={() => createDialogOpen = true} title="New worktree (Ctrl+Shift+E)">
-						<PlusIcon class="h-4 w-4" />
-					</Button>
-					<Kbd class="hidden sm:inline-flex h-4 min-w-4 text-[10px] opacity-50" title="Ctrl+Shift+E — new worktree">⌃⇧E</Kbd>
+					{#if isPhone.current}
+						<!-- Phone: show current branch as text with dropdown for switching -->
+						{#if $currentWorktree}
+							{#if orderedWorktrees.length > 1}
+								<DropdownMenu.Root>
+									<DropdownMenu.Trigger>
+										{#snippet child({ props })}
+											<Button variant="ghost" size="sm" class="h-7 gap-1 px-2 text-sm font-medium" {...props}>
+												<span class="truncate max-w-32">{$currentWorktree.branch}</span>
+												<ChevronDownIcon class="h-3 w-3 opacity-50" />
+											</Button>
+										{/snippet}
+									</DropdownMenu.Trigger>
+									<DropdownMenu.Content align="start" class="w-48">
+										{#each orderedWorktrees as wt}
+											<DropdownMenu.Item
+												class="gap-2"
+												onclick={() => handleWorktreeChange(wt.path)}
+											>
+												<span class="truncate">{wt.branch}</span>
+												{#if wt.path === $currentWorktree?.path}
+													<span class="ml-auto text-xs text-muted-foreground">&#10003;</span>
+												{/if}
+											</DropdownMenu.Item>
+										{/each}
+									</DropdownMenu.Content>
+								</DropdownMenu.Root>
+							{:else}
+								<span class="text-sm font-medium truncate max-w-32">{$currentWorktree.branch}</span>
+							{/if}
+						{/if}
+					{:else}
+						{#if orderedWorktrees.length > 0}
+							<Tabs.Root value={$currentWorktree?.path ?? ''} onValueChange={handleWorktreeChange} class="min-w-0">
+								<div class="flex items-center min-w-0 overflow-x-auto scrollbar-none">
+									{#if orderedWorktrees.length > 1}
+										<Kbd class="mr-1 hidden lg:inline-flex h-4 min-w-4 text-[10px] opacity-50" title="Ctrl+[ — previous worktree">⌃[</Kbd>
+									{/if}
+									<Tabs.List>
+										{#each orderedWorktrees as wt, i}
+											<Tabs.Trigger
+												value={wt.path}
+												class="group gap-1.5 pr-1.5 {isTablet.current ? 'max-w-32' : 'max-w-48'} {dropIndex === i && dragIndex !== null && dragIndex < i ? 'border-r-2 border-r-primary' : ''} {dropIndex === i && dragIndex !== null && dragIndex > i ? 'border-l-2 border-l-primary' : ''}"
+												draggable={true}
+												ondragstart={(e: DragEvent) => handleDragStart(e, i)}
+												ondragover={(e: DragEvent) => handleDragOver(e, i)}
+												ondrop={(e: DragEvent) => handleDrop(e, i)}
+												ondragend={handleDragEnd}
+											>
+												<span class="truncate">{wt.branch}</span>
+												{#if i < 9}
+													<Kbd class="ml-1 hidden lg:inline-flex h-4 min-w-4 text-[10px] opacity-40">⌃{i + 1}</Kbd>
+												{/if}
+												{#if !wt.isMain}
+													<button
+														class="ml-0.5 rounded-sm opacity-60 hover:opacity-100 hover:bg-muted-foreground/20"
+														onclick={(e) => promptDeleteWorktree(e, wt)}
+														disabled={deletingPath === wt.path}
+													>
+														{#if deletingPath === wt.path}
+															<LoaderCircleIcon class="h-3 w-3 animate-spin" />
+														{:else}
+															<XIcon class="h-3 w-3" />
+														{/if}
+													</button>
+												{/if}
+											</Tabs.Trigger>
+										{/each}
+									</Tabs.List>
+									{#if orderedWorktrees.length > 1}
+										<Kbd class="ml-1 hidden lg:inline-flex h-4 min-w-4 text-[10px] opacity-50" title="Ctrl+] — next worktree">⌃]</Kbd>
+									{/if}
+								</div>
+							</Tabs.Root>
+						{/if}
+
+						<Button variant="ghost" size="icon" class="h-7 w-7" onclick={() => createDialogOpen = true} title="New worktree (Ctrl+Shift+E)">
+							<PlusIcon class="h-4 w-4" />
+						</Button>
+						<Kbd class="hidden lg:inline-flex h-4 min-w-4 text-[10px] opacity-50" title="Ctrl+Shift+E — new worktree">⌃⇧E</Kbd>
+					{/if}
 
 					<div class="ml-auto">
 						<DropdownMenu.Root>
@@ -506,26 +569,28 @@
 									</DropdownMenu.SubContent>
 								</DropdownMenu.Sub>
 								<DropdownMenu.Separator />
-								<DropdownMenu.Sub>
-									<DropdownMenu.SubTrigger>Terminal position</DropdownMenu.SubTrigger>
-									<DropdownMenu.SubContent>
-										<DropdownMenu.Item class="gap-2" onclick={() => terminalLayout.set('right')}>
-											<PanelRightIcon class="h-4 w-4" />
-											Right
-											{#if $terminalLayout === 'right'}
-												<span class="ml-auto text-xs text-muted-foreground">&#10003;</span>
-											{/if}
-										</DropdownMenu.Item>
-										<DropdownMenu.Item class="gap-2" onclick={() => terminalLayout.set('bottom')}>
-											<PanelBottomIcon class="h-4 w-4" />
-											Bottom
-											{#if $terminalLayout === 'bottom'}
-												<span class="ml-auto text-xs text-muted-foreground">&#10003;</span>
-											{/if}
-										</DropdownMenu.Item>
-									</DropdownMenu.SubContent>
-								</DropdownMenu.Sub>
-								<DropdownMenu.Separator />
+								{#if !isPhone.current}
+									<DropdownMenu.Sub>
+										<DropdownMenu.SubTrigger>Terminal position</DropdownMenu.SubTrigger>
+										<DropdownMenu.SubContent>
+											<DropdownMenu.Item class="gap-2" onclick={() => terminalLayout.set('right')}>
+												<PanelRightIcon class="h-4 w-4" />
+												Right
+												{#if $terminalLayout === 'right'}
+													<span class="ml-auto text-xs text-muted-foreground">&#10003;</span>
+												{/if}
+											</DropdownMenu.Item>
+											<DropdownMenu.Item class="gap-2" onclick={() => terminalLayout.set('bottom')}>
+												<PanelBottomIcon class="h-4 w-4" />
+												Bottom
+												{#if $terminalLayout === 'bottom'}
+													<span class="ml-auto text-xs text-muted-foreground">&#10003;</span>
+												{/if}
+											</DropdownMenu.Item>
+										</DropdownMenu.SubContent>
+									</DropdownMenu.Sub>
+									<DropdownMenu.Separator />
+								{/if}
 								<DropdownMenu.Item onclick={() => linearSettingsOpen = true}>
 									Linear integration
 									{#if $linearApiKey}
@@ -542,28 +607,75 @@
 						</DropdownMenu.Root>
 					</div>
 				</header>
-				<div class="flex min-h-0 flex-1 {$terminalLayout === 'bottom' ? 'flex-col' : ''}">
-					<div class="relative min-w-0 flex-1 overflow-hidden">
-						{#each orderedWorktrees as wt (wt.path)}
-							<div class="absolute inset-0" class:invisible={wt.path !== $currentWorktree?.path} class:pointer-events-none={wt.path !== $currentWorktree?.path}>
-								<Editor bind:this={editorRefs[wt.path]} worktreePath={wt.path} />
-							</div>
-						{/each}
-					</div>
-					{#if terminalOpen}
-						<PanelResizeHandle orientation={$terminalLayout === 'bottom' ? 'horizontal' : 'vertical'} onresize={handleTerminalResize} />
-						{#if $terminalLayout === 'right'}
-							<div class="flex h-full shrink-0 flex-col overflow-hidden" style="width: {$terminalWidth}px">
-								<Terminal bind:this={terminalRef} />
+				{#if isPhone.current}
+					<!-- Phone: single panel view -->
+					<div class="flex min-h-0 flex-1 flex-col">
+						{#if $activePhonePanel === 'editor'}
+							<div class="relative min-w-0 flex-1 overflow-hidden">
+								{#each orderedWorktrees as wt (wt.path)}
+									<div class="absolute inset-0" class:invisible={wt.path !== $currentWorktree?.path} class:pointer-events-none={wt.path !== $currentWorktree?.path}>
+										<Editor bind:this={editorRefs[wt.path]} worktreePath={wt.path} />
+									</div>
+								{/each}
 							</div>
 						{:else}
-							<div class="shrink-0 overflow-hidden" style="height: {$terminalHeight}px">
+							<div class="flex min-h-0 flex-1 flex-col overflow-hidden">
 								<Terminal bind:this={terminalRef} />
 							</div>
 						{/if}
-					{/if}
-				</div>
+					</div>
+				{:else}
+					<!-- Tablet & Desktop: split panel view -->
+					<div class="flex min-h-0 flex-1 {$terminalLayout === 'bottom' ? 'flex-col' : ''}">
+						<div class="relative min-w-0 flex-1 overflow-hidden">
+							{#each orderedWorktrees as wt (wt.path)}
+								<div class="absolute inset-0" class:invisible={wt.path !== $currentWorktree?.path} class:pointer-events-none={wt.path !== $currentWorktree?.path}>
+									<Editor bind:this={editorRefs[wt.path]} worktreePath={wt.path} />
+								</div>
+							{/each}
+						</div>
+						{#if terminalOpen}
+							<PanelResizeHandle orientation={$terminalLayout === 'bottom' ? 'horizontal' : 'vertical'} onresize={handleTerminalResize} />
+							{#if $terminalLayout === 'right'}
+								<div class="flex h-full shrink-0 flex-col overflow-hidden" style="width: {effectiveTerminalWidth}px">
+									<Terminal bind:this={terminalRef} />
+								</div>
+							{:else}
+								<div class="shrink-0 overflow-hidden" style="height: {effectiveTerminalHeight}px">
+									<Terminal bind:this={terminalRef} />
+								</div>
+							{/if}
+						{/if}
+					</div>
+				{/if}
 			</Sidebar.Inset>
+			<!-- Phone bottom navigation bar (inside Provider for sidebar context) -->
+			{#if isPhone.current}
+				{@const sidebar = useSidebar()}
+				<nav class="fixed inset-x-0 bottom-0 z-40 flex h-12 items-center justify-around border-t border-border bg-background">
+					<button
+						class="flex flex-1 flex-col items-center justify-center gap-0.5 py-1 text-muted-foreground"
+						onclick={() => sidebar.setOpenMobile(true)}
+					>
+						<FolderTreeIcon class="h-5 w-5" />
+						<span class="text-[10px]">Files</span>
+					</button>
+					<button
+						class="flex flex-1 flex-col items-center justify-center gap-0.5 py-1 {$activePhonePanel === 'editor' ? 'text-foreground' : 'text-muted-foreground'}"
+						onclick={() => activePhonePanel.set('editor')}
+					>
+						<CodeIcon class="h-5 w-5" />
+						<span class="text-[10px]">Editor</span>
+					</button>
+					<button
+						class="flex flex-1 flex-col items-center justify-center gap-0.5 py-1 {$activePhonePanel === 'terminal' ? 'text-foreground' : 'text-muted-foreground'}"
+						onclick={() => activePhonePanel.set('terminal')}
+					>
+						<TerminalSquareIcon class="h-5 w-5" />
+						<span class="text-[10px]">Terminal</span>
+					</button>
+				</nav>
+			{/if}
 	</Sidebar.Provider>
 </div>
 

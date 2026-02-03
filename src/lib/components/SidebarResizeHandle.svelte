@@ -55,7 +55,7 @@
 	{onpointerdown}
 	{ondblclick}
 	class={cn(
-		'absolute inset-y-0 z-20 hidden w-4 -translate-x-1/2 transition-all ease-linear group-data-[side=left]:-end-4 sm:flex items-center justify-center',
+		'absolute inset-y-0 z-20 hidden w-4 pointer-coarse:w-6 -translate-x-1/2 transition-all ease-linear group-data-[side=left]:-end-4 lg:flex items-center justify-center touch-action-none',
 		'cursor-col-resize select-none',
 		'group-data-[collapsible=offcanvas]:translate-x-0 group-data-[collapsible=offcanvas]:after:start-full',
 		'[[data-side=left][data-collapsible=offcanvas]_&]:-end-2',

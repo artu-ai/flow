@@ -9,13 +9,15 @@
  *   flow stop [path]       Stop a project dashboard (default: cwd)
  *   flow stop-all          Stop all dashboards
  *   flow shutdown          Stop daemon and all dashboards
- *   flow expose [path]     Expose via Tailscale Serve
- *   flow unexpose          Remove Tailscale exposure
+ *   flow expose [path]     Expose project via Tailscale (subpath per project)
+ *   flow expose --all      Expose all running dashboards via Tailscale
+ *   flow unexpose [path]   Remove Tailscale exposure for a project
+ *   flow unexpose --all    Remove all Flow Tailscale exposures
  */
 
 import { createConnection } from 'node:net';
 import { fork, execFileSync } from 'node:child_process';
-import { existsSync, readFileSync } from 'node:fs';
+import { existsSync, readFileSync, writeFileSync, mkdirSync } from 'node:fs';
 import { homedir } from 'node:os';
 import { join, resolve, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -24,6 +26,40 @@ const __dirname = dirname(fileURLToPath(import.meta.url));
 const DAEMON_JS = join(__dirname, 'daemon.js');
 const FLOW_DIR = join(homedir(), '.flow');
 const SOCK_PATH = join(FLOW_DIR, 'daemon.sock');
+
+// ─── Slug & expose tracking ─────────────────────────────────────────
+
+const EXPOSED_PATH = join(FLOW_DIR, 'exposed.json');
+
+function projectSlug(projectRoot) {
+	const name = projectRoot.split('/').filter(Boolean).pop() || 'project';
+	return name.toLowerCase().replace(/[^a-z0-9-]/g, '-').replace(/-+/g, '-').replace(/^-|-$/g, '');
+}
+
+function loadExposed() {
+	try {
+		return JSON.parse(readFileSync(EXPOSED_PATH, 'utf-8'));
+	} catch {
+		return {};
+	}
+}
+
+function saveExposed(data) {
+	mkdirSync(FLOW_DIR, { recursive: true });
+	writeFileSync(EXPOSED_PATH, JSON.stringify(data, null, 2) + '\n');
+}
+
+function addExposed(slug, projectRoot, port) {
+	const data = loadExposed();
+	data['/' + slug] = { projectRoot, port };
+	saveExposed(data);
+}
+
+function removeExposed(slug) {
+	const data = loadExposed();
+	delete data['/' + slug];
+	saveExposed(data);
+}
 
 // ─── Arg parsing ─────────────────────────────────────────────────────
 
@@ -133,6 +169,19 @@ async function cmdOpen() {
 		} catch { /* ignore */ }
 	}
 
+	// Expose via Tailscale if --expose
+	if (flags.has('--expose')) {
+		try {
+			const { slug, output } = exposeProject(projectRoot, res.port);
+			console.log('EXPOSE_STATUS: EXPOSED');
+			console.log(`SLUG: /${slug}`);
+			console.log(`TAILSCALE_OUTPUT: ${output}`);
+		} catch (err) {
+			console.log('EXPOSE_STATUS: FAILED');
+			console.log(`EXPOSE_ERROR: ${err.message}`);
+		}
+	}
+
 	process.exit(0);
 }
 
@@ -199,12 +248,40 @@ async function cmdShutdown() {
 	console.log('STATUS: SHUTDOWN');
 }
 
-async function cmdExpose() {
-	const projectRoot = resolve(positional[0] || process.cwd());
-	await ensureDaemon();
+function exposeProject(projectRoot, port) {
+	const slug = projectSlug(projectRoot);
+	const output = execFileSync('tailscale', [
+		'serve', '--bg', '--set-path', '/' + slug, `http://localhost:${port}`,
+	], { encoding: 'utf-8' });
+	addExposed(slug, projectRoot, port);
+	return { slug, output: output.trim() };
+}
 
-	// Get the port for this project
+async function cmdExpose() {
+	await ensureDaemon();
 	const list = await sendCommand('list');
+
+	if (flags.has('--all')) {
+		if (!Array.isArray(list) || list.length === 0) {
+			console.log('STATUS: NO_PROJECTS');
+			console.log('No running dashboards to expose.');
+			return;
+		}
+		let failed = false;
+		for (const entry of list) {
+			try {
+				const { slug } = exposeProject(entry.projectRoot, entry.port);
+				console.log(`EXPOSED: /${slug} → localhost:${entry.port}`);
+			} catch (err) {
+				console.log(`FAILED: ${entry.projectRoot} — ${err.message}`);
+				failed = true;
+			}
+		}
+		console.log(failed ? 'STATUS: PARTIAL' : 'STATUS: ALL_EXPOSED');
+		return;
+	}
+
+	const projectRoot = resolve(positional[0] || process.cwd());
 	const entry = Array.isArray(list) ? list.find((e) => e.projectRoot === projectRoot) : null;
 
 	if (!entry) {
@@ -214,9 +291,10 @@ async function cmdExpose() {
 	}
 
 	try {
-		const output = execFileSync('tailscale', ['serve', '--bg', String(entry.port)], { encoding: 'utf-8' });
+		const { slug, output } = exposeProject(projectRoot, entry.port);
 		console.log('STATUS: EXPOSED');
-		console.log(`TAILSCALE_OUTPUT: ${output.trim()}`);
+		console.log(`SLUG: /${slug}`);
+		console.log(`TAILSCALE_OUTPUT: ${output}`);
 		try {
 			const status = execFileSync('tailscale', ['serve', 'status'], { encoding: 'utf-8' });
 			console.log('SERVE_STATUS:');
@@ -229,9 +307,36 @@ async function cmdExpose() {
 }
 
 async function cmdUnexpose() {
+	if (flags.has('--all')) {
+		const exposed = loadExposed();
+		const paths = Object.keys(exposed);
+		if (paths.length === 0) {
+			console.log('STATUS: NOTHING_EXPOSED');
+			return;
+		}
+		let failed = false;
+		for (const subpath of paths) {
+			try {
+				execFileSync('tailscale', ['serve', '--set-path', subpath, 'off'], { encoding: 'utf-8' });
+				console.log(`REMOVED: ${subpath}`);
+			} catch (err) {
+				console.log(`FAILED: ${subpath} — ${err.message}`);
+				failed = true;
+			}
+		}
+		saveExposed({});
+		console.log(failed ? 'STATUS: PARTIAL' : 'STATUS: ALL_UNEXPOSED');
+		return;
+	}
+
+	const projectRoot = resolve(positional[0] || process.cwd());
+	const slug = projectSlug(projectRoot);
+
 	try {
-		execFileSync('tailscale', ['serve', 'off'], { encoding: 'utf-8' });
+		execFileSync('tailscale', ['serve', '--set-path', '/' + slug, 'off'], { encoding: 'utf-8' });
+		removeExposed(slug);
 		console.log('STATUS: UNEXPOSED');
+		console.log(`SLUG: /${slug}`);
 	} catch (err) {
 		console.log('STATUS: FAILED');
 		console.log(`ERROR: ${err.message}`);
@@ -242,16 +347,19 @@ function showUsage() {
 	console.log(`Usage: flow <command> [options]
 
 Commands:
-  open [path]       Start/open a project dashboard (default: cwd)
-  list              List running dashboards
-  stop [path]       Stop a project dashboard (default: cwd)
-  stop-all          Stop all dashboards
-  shutdown          Stop daemon and all dashboards
-  expose [path]     Expose via Tailscale Serve
-  unexpose          Remove Tailscale exposure
+  open [path]         Start/open a project dashboard (default: cwd)
+  list                List running dashboards
+  stop [path]         Stop a project dashboard (default: cwd)
+  stop-all            Stop all dashboards
+  shutdown            Stop daemon and all dashboards
+  expose [path]       Expose project via Tailscale (subpath per project)
+  expose --all        Expose all running dashboards via Tailscale
+  unexpose [path]     Remove Tailscale exposure for a project
+  unexpose --all      Remove all Flow Tailscale exposures
 
 Options:
-  --no-browser      Don't open browser (for open command)`);
+  --no-browser        Don't open browser (for open command)
+  --expose            Expose via Tailscale after opening (for open command)`);
 }
 
 // ─── Main ────────────────────────────────────────────────────────────
