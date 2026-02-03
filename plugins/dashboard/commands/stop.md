@@ -1,6 +1,7 @@
 ---
 description: Stop the dashboard server
 disable-model-invocation: true
+allowed-tools: Bash(flow stop:*)
 ---
 
 # Dashboard Stop

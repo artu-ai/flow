@@ -2,6 +2,7 @@
 description: Start the dashboard server on localhost
 argument-hint: "[path]"
 disable-model-invocation: true
+allowed-tools: Bash(flow open --no-browser:*)
 ---
 
 # Dashboard Open
