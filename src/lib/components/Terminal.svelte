@@ -296,8 +296,9 @@
     { title, body }: { title?: string; body: string },
   ) {
     // Don't show toast if this terminal is already active and visible
-    if (sessionId === activeSession && worktreePath === $currentWorktree?.path)
+    if (sessionId === activeSession && worktreePath === $currentWorktree?.path) {
       return;
+    }
     // Suppress notifications briefly after the user visited this terminal
     const cooldownUntil = notificationCooldowns[sessionId] ?? 0;
     if (Date.now() < cooldownUntil) return;
@@ -591,7 +592,7 @@
   {:else}
     <!-- Tab bar -->
     <div
-      class="flex h-8 shrink-0 items-center border-b border-border bg-muted/30 px-1 gap-0.5 overflow-x-auto"
+      class="flex h-8 shrink-0 items-center border-b border-border bg-muted/30 px-1 gap-0.5 overflow-x-auto scrollbar-thin"
     >
       {#if currentSessions.length > 1}
         <Kbd
