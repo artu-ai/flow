@@ -73,7 +73,7 @@ export type TerminalLayout = 'right' | 'bottom';
 export const terminalLayout = persistedWritable<TerminalLayout>('dashboard:terminalLayout', 'right');
 export const worktreeOrder = persistedWritable<string[]>('dashboard:worktreeOrder', []);
 export const hiddenWorktrees = persistedWritable<string[]>('dashboard:hiddenWorktrees', []);
-export const terminalChatInputEnabled = persistedWritable<boolean>('dashboard:terminalChatInput', false);
+export const terminalChatInputEnabled = persistedWritable<boolean>('dashboard:terminalChatInput', true);
 export const previousWorktreePath = writable<string | null>(null);
 export const showGitIgnored = persistedWritable<boolean>('dashboard:showGitIgnored', false);
 

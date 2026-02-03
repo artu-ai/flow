@@ -296,8 +296,9 @@
     { title, body }: { title?: string; body: string },
   ) {
     // Don't show toast if this terminal is already active and visible
-    if (sessionId === activeSession && worktreePath === $currentWorktree?.path)
+    if (sessionId === activeSession && worktreePath === $currentWorktree?.path) {
       return;
+    }
     // Suppress notifications briefly after the user visited this terminal
     const cooldownUntil = notificationCooldowns[sessionId] ?? 0;
     if (Date.now() < cooldownUntil) return;
@@ -591,7 +592,7 @@
   {:else}
     <!-- Tab bar -->
     <div
-      class="flex h-8 shrink-0 items-center border-b border-border bg-muted/30 px-1 gap-0.5 overflow-x-auto"
+      class="flex h-8 shrink-0 items-center border-b border-border bg-muted/30 px-1 gap-0.5 overflow-x-auto scrollbar-thin"
     >
       {#if currentSessions.length > 1}
         <Kbd
@@ -707,7 +708,7 @@
   </div>
   {#if currentSessions.length > 0 && chatInputActive}
     <div
-      class="shrink-0 border-t border-border bg-muted/30 p-2 flex flex-col gap-2"
+      class="shrink-0 border-t border-border bg-muted/30 p-2 flex flex-col gap-2 {isPhone.current ? 'pb-14' : ''}"
     >
       <textarea
         bind:this={chatTextareaRef}
@@ -787,8 +788,24 @@
     scrollbar-color: var(--border) transparent;
   }
   @media (pointer: coarse) {
+    :global(.xterm) {
+      touch-action: pan-y !important;
+    }
     :global(.xterm-viewport) {
       scrollbar-width: auto;
+      touch-action: pan-y !important;
+      -webkit-overflow-scrolling: touch;
+    }
+    :global(.xterm-screen) {
+      touch-action: pan-y !important;
+      pointer-events: none !important;
+    }
+    :global(.xterm-screen canvas) {
+      touch-action: pan-y !important;
+      pointer-events: none !important;
+    }
+    :global(.xterm-helper-textarea) {
+      pointer-events: none !important;
     }
   }
   :global(.xterm-viewport::-webkit-scrollbar) {

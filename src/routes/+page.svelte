@@ -527,7 +527,7 @@
 					{:else}
 						{#if orderedWorktrees.length > 0}
 							<Tabs.Root value={$currentWorktree?.path ?? ''} onValueChange={handleWorktreeChange} class="min-w-0">
-								<div class="flex items-center min-w-0 overflow-x-auto scrollbar-none">
+								<div class="flex items-center min-w-0 overflow-x-auto scrollbar-thin">
 									{#if visibleWorktrees.length > 1}
 										<Kbd class="mr-1 hidden lg:inline-flex h-4 min-w-4 text-[10px] opacity-50" title="Ctrl+[ — previous worktree">⌃[</Kbd>
 									{/if}
