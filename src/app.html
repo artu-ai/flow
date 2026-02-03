@@ -5,6 +5,47 @@
 		<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no" />
 		<link rel="icon" href="data:," />
 		<title>Dashboard</title>
+		<script>
+			// Subpath shim: when served behind Tailscale Serve --set-path,
+			// the browser URL has a subpath prefix that the server doesn't know about.
+			// This script detects the subpath, ensures a trailing slash, and patches
+			// asset resolution + fetch/WebSocket so everything routes correctly.
+			(function () {
+				var p = location.pathname;
+				if (p === '/' || p === '') return;
+				// Redirect to add trailing slash (must happen before assets are parsed)
+				if (!p.endsWith('/')) {
+					location.replace(p + '/' + location.search + location.hash);
+					return; // stop parsing — browser will navigate
+				}
+				// Set <base> so relative asset paths (./_app/...) resolve under the subpath
+				var base = document.createElement('base');
+				base.href = p;
+				document.head.prepend(base);
+				// Patch fetch: convert absolute /api/... paths to relative ./api/...
+				var _fetch = window.fetch;
+				window.fetch = function (url, opts) {
+					if (typeof url === 'string' && url.startsWith('/')) url = '.' + url;
+					return _fetch.call(this, url, opts);
+				};
+				// Patch WebSocket: prepend subpath to absolute paths on same host
+				var _WS = window.WebSocket;
+				window.WebSocket = function (url, protocols) {
+					try {
+						var u = new URL(url);
+						if (u.host === location.host && !u.pathname.startsWith(p))
+							u.pathname = p + u.pathname.slice(1);
+						url = u.href;
+					} catch (e) {}
+					return protocols !== undefined ? new _WS(url, protocols) : new _WS(url);
+				};
+				window.WebSocket.prototype = _WS.prototype;
+				window.WebSocket.CONNECTING = _WS.CONNECTING;
+				window.WebSocket.OPEN = _WS.OPEN;
+				window.WebSocket.CLOSING = _WS.CLOSING;
+				window.WebSocket.CLOSED = _WS.CLOSED;
+			})();
+		</script>
 		%sveltekit.head%
 	</head>
 	<body data-sveltekit-preload-data="hover">

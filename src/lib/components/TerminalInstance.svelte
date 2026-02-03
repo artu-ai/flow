@@ -1,9 +1,10 @@
 <script lang="ts">
 	import { onMount } from 'svelte';
 
-	let { sessionId, visible, ontitlechange, onnotification, onfocus }: {
+	let { sessionId, visible, readOnly = false, ontitlechange, onnotification, onfocus }: {
 		sessionId: string;
 		visible: boolean;
+		readOnly?: boolean;
 		ontitlechange?: (title: string) => void;
 		onnotification?: (data: { title?: string; body: string }) => void;
 		onfocus?: () => void;
@@ -16,8 +17,19 @@
 	let resizeObserver: ResizeObserver | null = null;
 	let oscDisposables: { dispose: () => void }[] = [];
 
+	// Track readOnly state for the key handler closure (use object so closure sees updates)
+	let readOnlyRef = { value: readOnly };
+	$effect(() => { readOnlyRef.value = readOnly; });
+
 	export function focus() {
 		term?.focus();
+	}
+
+	/** Send raw data (keystrokes) to the terminal. */
+	export function write(data: string) {
+		if (ws?.readyState === WebSocket.OPEN) {
+			ws.send(data);
+		}
 	}
 
 	onMount(() => {
@@ -120,6 +132,23 @@
 			textarea.addEventListener('focus', () => onfocus?.());
 		}
 
+		// Prevent Escape (and other terminal keys) from bubbling to page-level
+		// handlers — e.g. bits-ui dialogs that close on Escape. xterm still
+		// processes the key normally because we return true.
+		// When readOnly is true, block all keyboard input except copy (Ctrl+C on selection).
+		term.attachCustomKeyEventHandler((event: KeyboardEvent) => {
+			if (event.key === 'Escape') event.stopPropagation();
+			if (readOnlyRef.value) {
+				// Allow Ctrl+C (copy) and Ctrl+Shift+C
+				if (event.ctrlKey && (event.key === 'c' || event.key === 'C')) {
+					return true;
+				}
+				// Block all other keyboard input
+				return false;
+			}
+			return true;
+		});
+
 		term.onData((data: string) => {
 			if (ws?.readyState === WebSocket.OPEN) {
 				ws.send(data);
@@ -155,7 +184,11 @@
 			// Tick delay so the container has its real dimensions
 			requestAnimationFrame(() => {
 				fitAddon?.fit();
-				term?.focus();
+				term?.scrollToBottom();
+				// Don't auto-focus if readOnly (chat input mode) - parent handles focus
+				if (!readOnlyRef.value) {
+					term?.focus();
+				}
 			});
 		}
 	});

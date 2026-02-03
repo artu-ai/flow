@@ -5,10 +5,11 @@
 	import * as Tabs from '$lib/components/ui/tabs';
 	import * as AlertDialog from '$lib/components/ui/alert-dialog';
 	import * as DropdownMenu from '$lib/components/ui/dropdown-menu';
+	import * as ContextMenu from '$lib/components/ui/context-menu';
 	import * as Tooltip from '$lib/components/ui/tooltip/index.js';
 	import { Button } from '$lib/components/ui/button';
 	import { Kbd } from '$lib/components/ui/kbd';
-	import { currentWorktree, worktrees, terminalSessions, activeTerminalSession, sidebarWidth, terminalWidth, terminalHeight, terminalLayout, hasUnsavedChanges, worktreeOrder, previousWorktreePath, focusedPanel, showGitIgnored, linearApiKey, completionConfig, linterConfig, formatterConfig, currentFile, gitFileStatuses, activePhonePanel } from '$lib/stores';
+	import { currentWorktree, worktrees, terminalSessions, activeTerminalSession, sidebarWidth, terminalWidth, terminalHeight, terminalLayout, hasUnsavedChanges, worktreeOrder, hiddenWorktrees, previousWorktreePath, focusedPanel, showGitIgnored, linearApiKey, completionConfig, linterConfig, formatterConfig, currentFile, gitFileStatuses, activePhonePanel, terminalChatInputEnabled } from '$lib/stores';
 	import type { Worktree } from '$lib/stores';
 	import { IsPhone, IsTablet } from '$lib/hooks/is-mobile.svelte.js';
 	import { useSidebar } from '$lib/components/ui/sidebar/context.svelte.js';
@@ -26,10 +27,13 @@
 	import PanelRightIcon from '@lucide/svelte/icons/panel-right';
 	import PanelBottomIcon from '@lucide/svelte/icons/panel-bottom';
 	import EyeIcon from '@lucide/svelte/icons/eye';
+	import EyeOffIcon from '@lucide/svelte/icons/eye-off';
+	import TrashIcon from '@lucide/svelte/icons/trash-2';
 	import FileKeyIcon from '@lucide/svelte/icons/file-key';
 	import FolderTreeIcon from '@lucide/svelte/icons/folder-tree';
 	import CodeIcon from '@lucide/svelte/icons/code';
 	import TerminalSquareIcon from '@lucide/svelte/icons/terminal';
+	import KeyboardIcon from '@lucide/svelte/icons/keyboard';
 	import ChevronDownIcon from '@lucide/svelte/icons/chevron-down';
 	import { onMount } from 'svelte';
 
@@ -63,6 +67,16 @@
 		return ordered;
 	});
 
+	// Visible worktrees: ordered minus hidden (main is always visible)
+	let visibleWorktrees = $derived(
+		orderedWorktrees.filter((w) => w.isMain || !$hiddenWorktrees.includes(w.path))
+	);
+
+	// Hidden worktree objects for the dropdown
+	let hiddenWorktreeList = $derived(
+		orderedWorktrees.filter((w) => !w.isMain && $hiddenWorktrees.includes(w.path))
+	);
+
 	// Keep worktreeOrder in sync with the derived list
 	$effect(() => {
 		const derivedPaths = orderedWorktrees.map((w) => w.path);
@@ -72,6 +86,15 @@
 			derivedPaths.some((p, i) => p !== currentOrder[i])
 		) {
 			worktreeOrder.set(derivedPaths);
+		}
+	});
+
+	// Clean up stale paths from hiddenWorktrees when worktrees are deleted
+	$effect(() => {
+		const allPaths = new Set($worktrees.map((w) => w.path));
+		const stale = $hiddenWorktrees.filter((p) => !allPaths.has(p));
+		if (stale.length > 0) {
+			hiddenWorktrees.update((h) => h.filter((p) => allPaths.has(p)));
 		}
 	});
 
@@ -99,10 +122,17 @@
 	function handleDrop(e: DragEvent, index: number) {
 		e.preventDefault();
 		if (dragIndex === null || dragIndex === index) return;
-		const paths = orderedWorktrees.map((w) => w.path);
-		const [moved] = paths.splice(dragIndex, 1);
-		paths.splice(index, 0, moved);
-		worktreeOrder.set(paths);
+		// Map visible-tab indices back to full worktreeOrder positions
+		const fullPaths = orderedWorktrees.map((w) => w.path);
+		const dragPath = visibleWorktrees[dragIndex]?.path;
+		const dropPath = visibleWorktrees[index]?.path;
+		if (!dragPath || !dropPath) return;
+		const fromFull = fullPaths.indexOf(dragPath);
+		const toFull = fullPaths.indexOf(dropPath);
+		if (fromFull === -1 || toFull === -1) return;
+		const [moved] = fullPaths.splice(fromFull, 1);
+		fullPaths.splice(toFull, 0, moved);
+		worktreeOrder.set(fullPaths);
 		dragIndex = null;
 		dropIndex = null;
 	}
@@ -110,6 +140,40 @@
 	function handleDragEnd() {
 		dragIndex = null;
 		dropIndex = null;
+	}
+
+	function hideWorktree(path: string) {
+		const wt = $worktrees.find((w) => w.path === path);
+		if (!wt || wt.isMain) return;
+		hiddenWorktrees.update((h) => [...h, path]);
+		// If hiding the active tab, switch to nearest visible neighbor
+		if ($currentWorktree?.path === path) {
+			const idx = visibleWorktrees.findIndex((w) => w.path === path);
+			// After hiding, visibleWorktrees will update reactively, so find neighbor from orderedWorktrees
+			const visible = orderedWorktrees.filter(
+				(w) => w.path !== path && (w.isMain || !$hiddenWorktrees.includes(w.path))
+			);
+			if (visible.length > 0) {
+				// Pick the nearest neighbor by index in orderedWorktrees
+				const ordIdx = orderedWorktrees.findIndex((w) => w.path === path);
+				let best = visible[0];
+				let bestDist = Infinity;
+				for (const v of visible) {
+					const vIdx = orderedWorktrees.findIndex((w) => w.path === v.path);
+					const dist = Math.abs(vIdx - ordIdx);
+					if (dist < bestDist) {
+						bestDist = dist;
+						best = v;
+					}
+				}
+				handleWorktreeChange(best.path);
+			}
+		}
+	}
+
+	function unhideAndSwitchTo(path: string) {
+		hiddenWorktrees.update((h) => h.filter((p) => p !== path));
+		handleWorktreeChange(path);
 	}
 
 	let editorRefs = $state<Record<string, Editor>>({});
@@ -138,7 +202,7 @@
 
 	function handleKeydown(e: KeyboardEvent) {
 		if (!e.ctrlKey || e.altKey || e.metaKey) return;
-		const count = orderedWorktrees.length;
+		const count = visibleWorktrees.length;
 
 		// Ctrl+Shift+[ or Ctrl+Shift+] (arrives as '{' or '}'): navigate terminal tabs
 		if (e.shiftKey && (e.key === '{' || e.key === '}' || e.key === '[' || e.key === ']')) {
@@ -239,21 +303,21 @@
 
 		if (count === 0) return;
 
-		// Ctrl+1-9: switch to positional worktree tab
+		// Ctrl+1-9: switch to positional worktree tab (visible only)
 		if (e.key >= '1' && e.key <= '9') {
 			const idx = parseInt(e.key) - 1;
 			if (idx < count) {
 				e.preventDefault();
-				handleWorktreeChange(orderedWorktrees[idx].path);
+				handleWorktreeChange(visibleWorktrees[idx].path);
 				requestAnimationFrame(() => restoreFocus());
 			}
 			return;
 		}
 
-		// Ctrl+[ / Ctrl+]: prev/next worktree tab
+		// Ctrl+[ / Ctrl+]: prev/next worktree tab (visible only)
 		if (e.key === '[' || e.key === ']') {
 			e.preventDefault();
-			const currentIdx = orderedWorktrees.findIndex(
+			const currentIdx = visibleWorktrees.findIndex(
 				(w) => w.path === $currentWorktree?.path
 			);
 			if (currentIdx === -1) return;
@@ -261,7 +325,7 @@
 				e.key === '['
 					? (currentIdx - 1 + count) % count
 					: (currentIdx + 1) % count;
-			handleWorktreeChange(orderedWorktrees[next].path);
+			handleWorktreeChange(visibleWorktrees[next].path);
 			requestAnimationFrame(() => restoreFocus());
 		}
 	}
@@ -432,7 +496,7 @@
 										{/snippet}
 									</DropdownMenu.Trigger>
 									<DropdownMenu.Content align="start" class="w-48">
-										{#each orderedWorktrees as wt}
+										{#each visibleWorktrees as wt}
 											<DropdownMenu.Item
 												class="gap-2"
 												onclick={() => handleWorktreeChange(wt.path)}
@@ -443,6 +507,16 @@
 												{/if}
 											</DropdownMenu.Item>
 										{/each}
+										{#if hiddenWorktreeList.length > 0}
+											<DropdownMenu.Separator />
+											<DropdownMenu.Label class="text-xs text-muted-foreground">Hidden</DropdownMenu.Label>
+											{#each hiddenWorktreeList as wt}
+												<DropdownMenu.Item class="gap-2" onclick={() => unhideAndSwitchTo(wt.path)}>
+													<EyeOffIcon class="h-3.5 w-3.5 opacity-50" />
+													<span class="truncate">{wt.branch}</span>
+												</DropdownMenu.Item>
+											{/each}
+										{/if}
 									</DropdownMenu.Content>
 								</DropdownMenu.Root>
 							{:else}
@@ -453,45 +527,91 @@
 						{#if orderedWorktrees.length > 0}
 							<Tabs.Root value={$currentWorktree?.path ?? ''} onValueChange={handleWorktreeChange} class="min-w-0">
 								<div class="flex items-center min-w-0 overflow-x-auto scrollbar-none">
-									{#if orderedWorktrees.length > 1}
+									{#if visibleWorktrees.length > 1}
 										<Kbd class="mr-1 hidden lg:inline-flex h-4 min-w-4 text-[10px] opacity-50" title="Ctrl+[ — previous worktree">⌃[</Kbd>
 									{/if}
 									<Tabs.List>
-										{#each orderedWorktrees as wt, i}
-											<Tabs.Trigger
-												value={wt.path}
-												class="group gap-1.5 pr-1.5 {isTablet.current ? 'max-w-32' : 'max-w-48'} {dropIndex === i && dragIndex !== null && dragIndex < i ? 'border-r-2 border-r-primary' : ''} {dropIndex === i && dragIndex !== null && dragIndex > i ? 'border-l-2 border-l-primary' : ''}"
-												draggable={true}
-												ondragstart={(e: DragEvent) => handleDragStart(e, i)}
-												ondragover={(e: DragEvent) => handleDragOver(e, i)}
-												ondrop={(e: DragEvent) => handleDrop(e, i)}
-												ondragend={handleDragEnd}
-											>
-												<span class="truncate">{wt.branch}</span>
-												{#if i < 9}
-													<Kbd class="ml-1 hidden lg:inline-flex h-4 min-w-4 text-[10px] opacity-40">⌃{i + 1}</Kbd>
-												{/if}
-												{#if !wt.isMain}
-													<button
-														class="ml-0.5 rounded-sm opacity-60 hover:opacity-100 hover:bg-muted-foreground/20"
-														onclick={(e) => promptDeleteWorktree(e, wt)}
-														disabled={deletingPath === wt.path}
+										{#each visibleWorktrees as wt, i}
+											<ContextMenu.Root>
+												<ContextMenu.Trigger>
+													<Tabs.Trigger
+														value={wt.path}
+														class="group gap-1.5 pr-1.5 {isTablet.current ? 'max-w-32' : 'max-w-48'} {dropIndex === i && dragIndex !== null && dragIndex < i ? 'border-r-2 border-r-primary' : ''} {dropIndex === i && dragIndex !== null && dragIndex > i ? 'border-l-2 border-l-primary' : ''}"
+														draggable={true}
+														ondragstart={(e: DragEvent) => handleDragStart(e, i)}
+														ondragover={(e: DragEvent) => handleDragOver(e, i)}
+														ondrop={(e: DragEvent) => handleDrop(e, i)}
+														ondragend={handleDragEnd}
 													>
-														{#if deletingPath === wt.path}
-															<LoaderCircleIcon class="h-3 w-3 animate-spin" />
-														{:else}
-															<XIcon class="h-3 w-3" />
+														<span class="truncate">{wt.branch}</span>
+														{#if i < 9}
+															<Kbd class="ml-1 hidden lg:inline-flex h-4 min-w-4 text-[10px] opacity-40">⌃{i + 1}</Kbd>
 														{/if}
-													</button>
-												{/if}
-											</Tabs.Trigger>
+														{#if !wt.isMain}
+															<button
+																class="ml-0.5 rounded-sm opacity-60 hover:opacity-100 hover:bg-muted-foreground/20"
+																onclick={(e) => promptDeleteWorktree(e, wt)}
+																disabled={deletingPath === wt.path}
+															>
+																{#if deletingPath === wt.path}
+																	<LoaderCircleIcon class="h-3 w-3 animate-spin" />
+																{:else}
+																	<XIcon class="h-3 w-3" />
+																{/if}
+															</button>
+														{/if}
+													</Tabs.Trigger>
+												</ContextMenu.Trigger>
+												<ContextMenu.Content class="w-48">
+													{#if wt.isMain}
+														<ContextMenu.Item disabled>Main worktree</ContextMenu.Item>
+													{:else}
+														<ContextMenu.Item class="gap-2" onclick={() => hideWorktree(wt.path)}>
+															<EyeOffIcon class="h-4 w-4" />
+															Hide tab
+														</ContextMenu.Item>
+														<ContextMenu.Separator />
+														<ContextMenu.Item class="gap-2" variant="destructive" onclick={() => { deleteTarget = wt; deleteDialogOpen = true; }}>
+															<TrashIcon class="h-4 w-4" />
+															Delete worktree
+														</ContextMenu.Item>
+													{/if}
+												</ContextMenu.Content>
+											</ContextMenu.Root>
 										{/each}
 									</Tabs.List>
-									{#if orderedWorktrees.length > 1}
+									{#if visibleWorktrees.length > 1}
 										<Kbd class="ml-1 hidden lg:inline-flex h-4 min-w-4 text-[10px] opacity-50" title="Ctrl+] — next worktree">⌃]</Kbd>
 									{/if}
 								</div>
 							</Tabs.Root>
+						{/if}
+
+						{#if hiddenWorktreeList.length > 0}
+							<DropdownMenu.Root>
+								<DropdownMenu.Trigger>
+									{#snippet child({ props })}
+										<Button variant="ghost" size="icon" class="relative h-7 w-7" title="Hidden tabs" {...props}>
+											<EyeOffIcon class="h-4 w-4" />
+											<span class="absolute -top-1 -right-1 flex h-4 min-w-4 items-center justify-center rounded-full bg-primary px-1 text-[10px] font-medium text-primary-foreground">{hiddenWorktreeList.length}</span>
+										</Button>
+									{/snippet}
+								</DropdownMenu.Trigger>
+								<DropdownMenu.Content align="start" class="w-48">
+									{#each hiddenWorktreeList as wt}
+										<DropdownMenu.Item class="gap-2" onclick={() => unhideAndSwitchTo(wt.path)}>
+											<EyeOffIcon class="h-3.5 w-3.5 opacity-50" />
+											<span class="truncate">{wt.branch}</span>
+										</DropdownMenu.Item>
+									{/each}
+									{#if hiddenWorktreeList.length > 1}
+										<DropdownMenu.Separator />
+										<DropdownMenu.Item onclick={() => hiddenWorktrees.set([])}>
+											Show all tabs
+										</DropdownMenu.Item>
+									{/if}
+								</DropdownMenu.Content>
+							</DropdownMenu.Root>
 						{/if}
 
 						<Button variant="ghost" size="icon" class="h-7 w-7" onclick={() => createDialogOpen = true} title="New worktree (Ctrl+Shift+E)">
@@ -589,6 +709,13 @@
 											</DropdownMenu.Item>
 										</DropdownMenu.SubContent>
 									</DropdownMenu.Sub>
+									<DropdownMenu.Item class="gap-2" onclick={() => terminalChatInputEnabled.update((v) => !v)}>
+										<KeyboardIcon class="h-4 w-4" />
+										Terminal chat input
+										{#if $terminalChatInputEnabled}
+											<span class="ml-auto text-xs text-muted-foreground">&#10003;</span>
+										{/if}
+									</DropdownMenu.Item>
 									<DropdownMenu.Separator />
 								{/if}
 								<DropdownMenu.Item onclick={() => linearSettingsOpen = true}>

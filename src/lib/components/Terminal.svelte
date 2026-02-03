@@ -1,5 +1,5 @@
 <script lang="ts">
-	import { currentWorktree, worktrees, terminalSessions, activeTerminalSession, focusedPanel } from '$lib/stores';
+	import { currentWorktree, worktrees, terminalSessions, activeTerminalSession, focusedPanel, terminalChatInputEnabled } from '$lib/stores';
 	import { onMount } from 'svelte';
 	import { toast } from 'svelte-sonner';
 	import { Button } from '$lib/components/ui/button';
@@ -7,13 +7,24 @@
 	import TerminalSquareIcon from '@lucide/svelte/icons/terminal';
 	import PlusIcon from '@lucide/svelte/icons/plus';
 	import XIcon from '@lucide/svelte/icons/x';
+	import SendIcon from '@lucide/svelte/icons/send-horizontal';
 	import TerminalInstance from './TerminalInstance.svelte';
+	import { IsPhone } from '$lib/hooks/is-mobile.svelte.js';
+
+	const isPhone = new IsPhone();
+
+	// Chat input is active if setting is enabled OR on phone (auto-enabled)
+	let chatInputActive = $derived(isPhone.current || $terminalChatInputEnabled);
 
 	// Refs to TerminalInstance components by sessionId
 	let instanceRefs: Record<string, TerminalInstance> = {};
 
-	/** Focus the currently active terminal instance. Called by parent on worktree switch. */
+	/** Focus the currently active terminal instance (or chat input if active). Called by parent on worktree switch. */
 	export function focusActive() {
+		if (chatInputActive && chatTextareaRef) {
+			chatTextareaRef.focus();
+			return;
+		}
 		const path = $currentWorktree?.path;
 		if (!path) return;
 		const sid = $activeTerminalSession[path];
@@ -143,8 +154,17 @@
 					...s,
 					[path]: data.id,
 				}));
-				// Focus the newly created terminal once it mounts
-				requestAnimationFrame(() => instanceRefs[data.id]?.focus());
+				// Focus the newly created terminal (or chat input if active) once it mounts
+				// Double RAF to ensure DOM has updated (especially for first terminal when chat input renders)
+				requestAnimationFrame(() => {
+					requestAnimationFrame(() => {
+						if (chatInputActive && chatTextareaRef) {
+							chatTextareaRef.focus();
+						} else {
+							instanceRefs[data.id]?.focus();
+						}
+					});
+				});
 			}
 		} catch (e) {
 			error = String(e);
@@ -203,8 +223,14 @@
 			...s,
 			[$currentWorktree!.path]: sessionId,
 		}));
-		// Focus the newly active terminal after it becomes visible
-		requestAnimationFrame(() => instanceRefs[sessionId]?.focus());
+		// Focus the newly active terminal (or chat input if active) after it becomes visible
+		requestAnimationFrame(() => {
+			if (chatInputActive && chatTextareaRef) {
+				chatTextareaRef.focus();
+			} else {
+				instanceRefs[sessionId]?.focus();
+			}
+		});
 	}
 
 	function navigateToTerminal(sessionId: string, worktreePath: string) {
@@ -286,6 +312,137 @@
 	function handleDragEnd() {
 		dragIdx = null;
 		dropIdx = null;
+	}
+
+	// Chat input state
+	let chatInput = $state('');
+	let chatTextareaRef = $state<HTMLTextAreaElement | null>(null);
+
+	function getActiveInstance() {
+		const path = $currentWorktree?.path;
+		if (!path) return null;
+		const sid = $activeTerminalSession[path];
+		return sid ? instanceRefs[sid] : null;
+	}
+
+	function sendChatInput() {
+		const instance = getActiveInstance();
+		if (!instance || !chatInput) return;
+		// Send all text to terminal, then Enter key
+		instance.write(chatInput);
+		instance.write('\r');
+		chatInput = '';
+		// Refocus the chat input and reset height
+		if (chatTextareaRef) {
+			chatTextareaRef.style.height = 'auto';
+			chatTextareaRef.focus();
+		}
+	}
+
+	function autoResizeTextarea() {
+		if (!chatTextareaRef) return;
+		chatTextareaRef.style.height = 'auto';
+		chatTextareaRef.style.height = `${Math.min(chatTextareaRef.scrollHeight, 150)}px`;
+	}
+
+	// Check if we're in "slash mode" - first char is /
+	let isSlashMode = $derived(chatInput.startsWith('/'));
+
+	function handleChatKeydown(e: KeyboardEvent) {
+		const instance = getActiveInstance();
+
+		// In slash mode, forward Tab and Arrow keys to terminal
+		if (isSlashMode && instance) {
+			if (e.key === 'Tab') {
+				e.preventDefault();
+				instance.write('\t');
+				// Clear chat since terminal will autocomplete
+				chatInput = '';
+				if (chatTextareaRef) {
+					chatTextareaRef.style.height = 'auto';
+				}
+				return;
+			}
+			if (e.key === 'ArrowUp') {
+				e.preventDefault();
+				instance.write('\x1b[A');
+				return;
+			}
+			if (e.key === 'ArrowDown') {
+				e.preventDefault();
+				instance.write('\x1b[B');
+				return;
+			}
+			if (e.key === 'ArrowRight') {
+				e.preventDefault();
+				instance.write('\x1b[C');
+				return;
+			}
+			if (e.key === 'ArrowLeft') {
+				e.preventDefault();
+				instance.write('\x1b[D');
+				return;
+			}
+		}
+
+		if (isPhone.current) {
+			// Phone mode: Enter adds newline (send via button only)
+			// Unless in slash mode, then Enter sends
+			if (isSlashMode && e.key === 'Enter' && !e.shiftKey) {
+				e.preventDefault();
+				sendSlashCommand();
+			}
+		} else {
+			// Desktop/iPad mode
+			if (e.key === 'Enter') {
+				if (e.shiftKey) {
+					// Shift+Enter: add newline to textarea (default behavior)
+				} else {
+					// Enter: send Enter to terminal and clear
+					e.preventDefault();
+					if (isSlashMode) {
+						sendSlashCommand();
+					} else {
+						sendChatInput();
+					}
+				}
+			}
+		}
+	}
+
+	function handleChatBeforeInput(e: InputEvent) {
+		// In slash mode, send all input immediately to terminal
+		if (!isSlashMode && !(chatInput === '' && e.data?.startsWith('/'))) return;
+
+		const instance = getActiveInstance();
+		if (!instance) return;
+
+		// Handle character insertion
+		if (e.inputType === 'insertText' || e.inputType === 'insertFromPaste') {
+			if (e.data) {
+				instance.write(e.data);
+			}
+		}
+		// Handle backspace/delete
+		else if (e.inputType === 'deleteContentBackward') {
+			instance.write('\x7f'); // DEL character (backspace)
+		}
+		else if (e.inputType === 'deleteContentForward') {
+			instance.write('\x1b[3~'); // Delete key escape sequence
+		}
+	}
+
+	function sendSlashCommand() {
+		const instance = getActiveInstance();
+		if (!instance) return;
+		// Just send Enter - characters were already sent
+		instance.write('\r');
+		chatInput = '';
+		// Reset textarea height and refocus
+		if (chatTextareaRef) {
+			chatTextareaRef.style.height = 'auto';
+			chatTextareaRef.focus();
+		}
 	}
 </script>
 
@@ -409,9 +566,35 @@
 			bind:this={instanceRefs[sessionId]}
 			{sessionId}
 			visible={worktreePath === $currentWorktree?.path && sessionId === activeSession}
+			readOnly={chatInputActive}
 			ontitlechange={(title) => handleTitleChange(sessionId, title)}
 			onnotification={(data) => handleNotification(sessionId, worktreePath, data)}
 			onfocus={() => handleTerminalFocus(worktreePath)}
 		/>
 	{/each}
+	{#if currentSessions.length > 0 && chatInputActive}
+		<div class="shrink-0 border-t border-border bg-muted/30 p-2">
+			<div class="flex gap-2">
+				<textarea
+					bind:this={chatTextareaRef}
+					bind:value={chatInput}
+					onkeydown={handleChatKeydown}
+					onbeforeinput={handleChatBeforeInput}
+					oninput={autoResizeTextarea}
+					placeholder={isPhone.current ? "Type here..." : "Type here... (Enter to send, Shift+Enter for newline)"}
+					rows="1"
+					class="flex-1 resize-none rounded-md border border-input bg-background px-3 py-2 text-sm placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-ring min-h-[38px] max-h-[150px] overflow-y-auto"
+				></textarea>
+				<Button
+					variant="default"
+					size="icon"
+					class="shrink-0"
+					onclick={sendChatInput}
+					disabled={!chatInput}
+				>
+					<SendIcon class="h-4 w-4" />
+				</Button>
+			</div>
+		</div>
+	{/if}
 </div>
