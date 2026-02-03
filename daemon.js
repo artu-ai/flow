@@ -13,7 +13,7 @@
 import { createServer, createConnection } from 'node:net';
 import { fork } from 'node:child_process';
 import { readFile, writeFile, unlink, mkdir } from 'node:fs/promises';
-import { existsSync, statSync } from 'node:fs';
+import { existsSync, statSync, createWriteStream } from 'node:fs';
 import { homedir } from 'node:os';
 import { join, resolve, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -37,12 +37,25 @@ const running = new Map();
 /** @type {import('node:net').Server | null} */
 let ipcServer = null;
 
-// ─── Helpers ─────────────────────────────────────────────────────────
+// ─── Logging ─────────────────────────────────────────────────────────
+
+const LOG_PATH = join(FLOW_DIR, 'daemon.log');
+let logStream = null;
+
+function initLogStream() {
+	logStream = createWriteStream(LOG_PATH, { flags: 'a' });
+	logStream.on('error', () => {}); // Prevent crashes on write errors
+}
 
 function log(msg) {
 	const ts = new Date().toISOString();
-	console.log(`[${ts}] ${msg}`);
+	const line = `[${ts}] ${msg}\n`;
+	if (logStream) {
+		logStream.write(line);
+	}
 }
+
+// ─── Helpers ─────────────────────────────────────────────────────────
 
 async function ensureDir() {
 	await mkdir(FLOW_DIR, { recursive: true });
@@ -142,8 +155,8 @@ async function handleOpen(args) {
 			}
 		});
 
-		if (child.stdout) child.stdout.on('data', (d) => process.stdout.write(d));
-		if (child.stderr) child.stderr.on('data', (d) => process.stderr.write(d));
+		if (child.stdout) child.stdout.on('data', (d) => { if (logStream) logStream.write(d); });
+		if (child.stderr) child.stderr.on('data', (d) => { if (logStream) logStream.write(d); });
 	});
 }
 
@@ -284,10 +297,11 @@ async function checkExistingDaemon() {
 
 async function main() {
 	await ensureDir();
+	initLogStream();
 
 	const alreadyRunning = await checkExistingDaemon();
 	if (alreadyRunning) {
-		console.error('Daemon is already running');
+		log('Daemon is already running');
 		process.exit(1);
 	}
 
