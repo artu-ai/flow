@@ -1,5 +1,1 @@
 node_modules/
-build/
-.svelte-kit/
-.dashboard.pid
-.dashboard.log

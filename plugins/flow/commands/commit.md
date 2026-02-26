@@ -1,7 +1,7 @@
 ---
-allowed-tools: Bash(git add:*), Bash(git status:*), Bash(git commit:*), Bash(git branch:*), Bash(git log:*), Bash(git push:*), Bash(gh pr view:*), Bash(gh pr create:*), mcp__plugin_linear_linear__create_comment, mcp__plugin_linear_linear__get_issue, mcp__plugin_linear_linear__update_issue
+allowed-tools: Bash(git add:*), Bash(git status:*), Bash(git commit:*), Bash(git branch:*), Bash(git log:*), Bash(git push:*), Bash(gh pr view:*), Bash(gh pr create:*), Bash(pnpm lint:*), Bash(pnpm check-types:*), Bash(pnpm check-circular:*), Bash(command -v pnpm:*), Bash(grep:*), mcp__plugin_linear_linear__create_comment, mcp__claude_ai_Linear__create_comment, mcp__plugin_linear_linear__get_issue, mcp__claude_ai_Linear__get_issue, mcp__plugin_linear_linear__update_issue, mcp__claude_ai_Linear__save_issue
 description: Create a git commit, create draft PR if needed, and comment on Linear issue
-argument-hint: [issue-id]
+argument-hint: [--no-verify]
 ---
 
 ## Context
@@ -10,14 +10,28 @@ argument-hint: [issue-id]
 - Current git diff (staged and unstaged changes): !`git diff HEAD`
 - Current branch: !`git branch --show-current`
 - Recent commits: !`git log --oneline -10`
-
-## Arguments
-
-- **Issue ID**: `$1` - The Linear issue ID (e.g., "ABC-123"). If not provided, infer from the branch name.
+- pnpm available: !`command -v pnpm 2>/dev/null && echo "yes" || echo "no"`
+- Has lint script: !`grep -q '"lint"' package.json 2>/dev/null && echo "yes" || echo "no"`
+- Has check-types script: !`grep -q '"check-types"' package.json 2>/dev/null && echo "yes" || echo "no"`
+- Has check-circular script: !`grep -q '"check-circular"' package.json 2>/dev/null && echo "yes" || echo "no"`
 
 ## Your task
 
 Based on the above changes:
+
+### Step 0: Quality checks
+
+If `$ARGUMENTS` contains `--no-verify`, skip this step entirely.
+
+If pnpm is available and the project has a `package.json`, check for and run these commands:
+
+1. If a `lint` script exists: run `pnpm lint`
+2. If a `check-types` script exists: run `pnpm check-types`
+3. If a `check-circular` script exists: run `pnpm check-circular`
+
+If either command fails with errors, **STOP immediately**. Report the errors to the user and ask if they want you to fix them before committing. Do NOT proceed with the commit until the user responds.
+
+If pnpm is not available or the scripts don't exist, skip this step.
 
 ### Step 1: Create the commit
 
@@ -33,18 +47,9 @@ git push
 
 ### Step 2: Get the Issue ID
 
-If `$1` is provided:
+Extract the issue ID from the branch name (Linear branches typically follow the format `username/abc-123-description`). Look for a pattern like `ABC-123` (letters-numbers) in the branch name.
 
-- Use it as the issue ID
-
-If `$1` is empty:
-
-- Extract the issue ID from the branch name (Linear branches typically follow the format `username/abc-123-description`)
-- Look for a pattern like `ABC-123` (letters-numbers) in the branch name
-
-If no issue ID can be determined:
-
-- Skip the Linear comment step and just complete the commit
+If no issue ID can be determined, skip the Linear steps and just complete the commit.
 
 ### Step 3: Create draft PR if needed
 

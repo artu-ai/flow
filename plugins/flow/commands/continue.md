@@ -1,7 +1,7 @@
 ---
 description: Show progress and recommend next todo(s) to tackle
 argument-hint: [issue-id]
-allowed-tools: Bash(git branch:*), mcp__plugin_linear_linear__get_issue
+allowed-tools: Bash(git branch:*), mcp__plugin_linear_linear__get_issue, mcp__claude_ai_Linear__get_issue
 ---
 
 # Continue

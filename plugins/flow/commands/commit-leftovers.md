@@ -1,6 +1,7 @@
 ---
 description: Commit unstaged changes in logical separate commits
-allowed-tools: Bash(git add:*), Bash(git status:*), Bash(git commit:*), Bash(git diff:*), Bash(git push:*), Bash(git branch:*), mcp__plugin_linear_linear__get_issue
+argument-hint: [--no-verify]
+allowed-tools: Bash(git add:*), Bash(git status:*), Bash(git commit:*), Bash(git diff:*), Bash(git push:*), Bash(git branch:*), Bash(pnpm lint:*), Bash(pnpm check-types:*), Bash(pnpm check-circular:*), Bash(command -v pnpm:*), Bash(grep:*), mcp__plugin_linear_linear__get_issue, mcp__claude_ai_Linear__get_issue
 ---
 
 # Commit Leftovers
@@ -13,10 +14,28 @@ Analyze unstaged changes and divide them into logical, separate commits.
 - Staged changes: !`git diff --cached --stat`
 - Unstaged changes: !`git diff --stat`
 - Current branch: !`git branch --show-current`
+- pnpm available: !`command -v pnpm 2>/dev/null && echo "yes" || echo "no"`
+- Has lint script: !`grep -q '"lint"' package.json 2>/dev/null && echo "yes" || echo "no"`
+- Has check-types script: !`grep -q '"check-types"' package.json 2>/dev/null && echo "yes" || echo "no"`
+- Has check-circular script: !`grep -q '"check-circular"' package.json 2>/dev/null && echo "yes" || echo "no"`
 
 ## Your task
 
 Commit any staged changes first, then organize unstaged changes into logical, separate commits.
+
+### Step 0: Quality checks
+
+If `$ARGUMENTS` contains `--no-verify`, skip this step entirely.
+
+If pnpm is available and the project has a `package.json`, check for and run these commands:
+
+1. If a `lint` script exists: run `pnpm lint`
+2. If a `check-types` script exists: run `pnpm check-types`
+3. If a `check-circular` script exists: run `pnpm check-circular`
+
+If either command fails with errors, **STOP immediately**. Report the errors to the user and ask if they want you to fix them before committing. Do NOT proceed with the commit until the user responds.
+
+If pnpm is not available or the scripts don't exist, skip this step.
 
 ### Step 1: Commit Staged Changes (if any)
 
