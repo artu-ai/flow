@@ -1,7 +1,7 @@
 ---
 description: Generate a standup summary from your recent Linear activity
 argument-hint: [morning|evening]
-allowed-tools: mcp__plugin_linear_linear__list_issues, mcp__claude_ai_Linear__list_issues, mcp__plugin_linear_linear__get_user, mcp__claude_ai_Linear__get_user, Bash(date:*), Bash(TZ=*:*), Bash(printf:*), Bash(pbcopy:*)
+allowed-tools: mcp__claude_ai_Linear__list_issues, mcp__claude_ai_Linear__get_user, Bash(date:*), Bash(TZ=*:*), Bash(printf:*), Bash(pbcopy:*)
 ---
 
 # Daily Standup Summary

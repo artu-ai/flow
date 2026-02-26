@@ -1,7 +1,7 @@
 ---
 description: Commit unstaged changes in logical separate commits
 argument-hint: [--no-verify]
-allowed-tools: Bash(git add:*), Bash(git status:*), Bash(git commit:*), Bash(git diff:*), Bash(git push:*), Bash(git branch:*), Bash(pnpm lint:*), Bash(pnpm check-types:*), Bash(pnpm check-circular:*), Bash(command -v pnpm:*), Bash(grep:*), mcp__plugin_linear_linear__get_issue, mcp__claude_ai_Linear__get_issue
+allowed-tools: Bash(git add:*), Bash(git status:*), Bash(git commit:*), Bash(git diff:*), Bash(git push:*), Bash(git branch:*), Bash(pnpm lint:*), Bash(pnpm check-types:*), Bash(pnpm check-circular:*), Bash(command -v pnpm:*), Bash(grep:*), mcp__claude_ai_Linear__get_issue
 ---
 
 # Commit Leftovers
