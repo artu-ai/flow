@@ -1,5 +1,6 @@
 ---
 description: Commit unstaged changes in logical separate commits
+argument-hint: [--no-verify]
 allowed-tools: Bash(git add:*), Bash(git status:*), Bash(git commit:*), Bash(git diff:*), Bash(git push:*), Bash(git branch:*), Bash(pnpm lint:*), Bash(pnpm check-types:*), Bash(pnpm check-circular:*), Bash(command -v pnpm:*), Bash(grep:*), mcp__plugin_linear_linear__get_issue, mcp__claude_ai_Linear__get_issue
 ---
 
@@ -23,6 +24,8 @@ Analyze unstaged changes and divide them into logical, separate commits.
 Commit any staged changes first, then organize unstaged changes into logical, separate commits.
 
 ### Step 0: Quality checks
+
+If `$ARGUMENTS` contains `--no-verify`, skip this step entirely.
 
 If pnpm is available and the project has a `package.json`, check for and run these commands:
 

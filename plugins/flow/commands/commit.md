@@ -1,6 +1,7 @@
 ---
 allowed-tools: Bash(git add:*), Bash(git status:*), Bash(git commit:*), Bash(git branch:*), Bash(git log:*), Bash(git push:*), Bash(gh pr view:*), Bash(gh pr create:*), Bash(pnpm lint:*), Bash(pnpm check-types:*), Bash(pnpm check-circular:*), Bash(command -v pnpm:*), Bash(grep:*), mcp__plugin_linear_linear__create_comment, mcp__claude_ai_Linear__create_comment, mcp__plugin_linear_linear__get_issue, mcp__claude_ai_Linear__get_issue, mcp__plugin_linear_linear__update_issue, mcp__claude_ai_Linear__save_issue
 description: Create a git commit, create draft PR if needed, and comment on Linear issue
+argument-hint: [--no-verify]
 ---
 
 ## Context
@@ -19,6 +20,8 @@ description: Create a git commit, create draft PR if needed, and comment on Line
 Based on the above changes:
 
 ### Step 0: Quality checks
+
+If `$ARGUMENTS` contains `--no-verify`, skip this step entirely.
 
 If pnpm is available and the project has a `package.json`, check for and run these commands:
 
