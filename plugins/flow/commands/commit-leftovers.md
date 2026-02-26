@@ -1,6 +1,6 @@
 ---
 description: Commit unstaged changes in logical separate commits
-allowed-tools: Bash(git add:*), Bash(git status:*), Bash(git commit:*), Bash(git diff:*), Bash(git push:*), Bash(git branch:*), Bash(pnpm lint:*), Bash(pnpm check-types:*), Bash(command -v pnpm:*), Bash(grep:*), mcp__plugin_linear_linear__get_issue, mcp__claude_ai_Linear__get_issue
+allowed-tools: Bash(git add:*), Bash(git status:*), Bash(git commit:*), Bash(git diff:*), Bash(git push:*), Bash(git branch:*), Bash(pnpm lint:*), Bash(pnpm check-types:*), Bash(pnpm check-circular:*), Bash(command -v pnpm:*), Bash(grep:*), mcp__plugin_linear_linear__get_issue, mcp__claude_ai_Linear__get_issue
 ---
 
 # Commit Leftovers
@@ -16,6 +16,7 @@ Analyze unstaged changes and divide them into logical, separate commits.
 - pnpm available: !`command -v pnpm 2>/dev/null && echo "yes" || echo "no"`
 - Has lint script: !`grep -q '"lint"' package.json 2>/dev/null && echo "yes" || echo "no"`
 - Has check-types script: !`grep -q '"check-types"' package.json 2>/dev/null && echo "yes" || echo "no"`
+- Has check-circular script: !`grep -q '"check-circular"' package.json 2>/dev/null && echo "yes" || echo "no"`
 
 ## Your task
 
@@ -27,6 +28,7 @@ If pnpm is available and the project has a `package.json`, check for and run the
 
 1. If a `lint` script exists: run `pnpm lint`
 2. If a `check-types` script exists: run `pnpm check-types`
+3. If a `check-circular` script exists: run `pnpm check-circular`
 
 If either command fails with errors, **STOP immediately**. Report the errors to the user and ask if they want you to fix them before committing. Do NOT proceed with the commit until the user responds.
 
