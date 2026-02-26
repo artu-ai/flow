@@ -1,7 +1,7 @@
 ---
 description: Move PR from draft to open and update Linear issue
 argument-hint: [issue-id]
-allowed-tools: Bash(gh pr ready:*), Bash(gh pr view:*), Bash(git branch:*), mcp__plugin_linear_linear__create_comment
+allowed-tools: Bash(gh pr ready:*), Bash(gh pr view:*), Bash(git branch:*), mcp__plugin_linear_linear__create_comment, mcp__claude_ai_Linear__create_comment
 ---
 
 # Mark PR Ready for Review

@@ -1,7 +1,7 @@
 ---
 name: issue-context
 description: Fetch the current Linear issue's description and plan for context. Use when you need to understand what you're working on, the requirements for the current task, the acceptance criteria, or when the user mentions "the issue", "the ticket", "the task", or asks about the current work context.
-allowed-tools: Bash(git branch:*), mcp__plugin_linear_linear__get_issue
+allowed-tools: Bash(git branch:*), mcp__plugin_linear_linear__get_issue, mcp__claude_ai_Linear__get_issue
 ---
 
 # Issue Context

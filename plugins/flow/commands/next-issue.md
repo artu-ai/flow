@@ -1,6 +1,6 @@
 ---
 description: Recommend which issue to tackle next from your backlog
-allowed-tools: mcp__plugin_linear_linear__list_issues, mcp__plugin_linear_linear__get_issue
+allowed-tools: mcp__plugin_linear_linear__list_issues, mcp__claude_ai_Linear__list_issues, mcp__plugin_linear_linear__get_issue, mcp__claude_ai_Linear__get_issue
 ---
 
 # Next Issue
