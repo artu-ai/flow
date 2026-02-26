@@ -24,9 +24,9 @@ If `$ARGUMENTS` is empty:
 Output and stop:
 
 ```
-Please provide a cancellation reason: /flow/cancel <reason>
+Please provide a cancellation reason: /flow:cancel <reason>
 
-Example: /flow/cancel "Requirements changed, no longer needed"
+Example: /flow:cancel "Requirements changed, no longer needed"
 ```
 
 ## Step 2: Check PR status
@@ -130,7 +130,7 @@ You're in a worktree. To complete cleanup:
   2. git pull
   3. git worktree remove <current-worktree-path>
 
-Or run /flow/clean to remove all stale worktrees.
+Or run /flow:clean to remove all stale worktrees.
 ```
 
 **If NOT in a worktree:**

@@ -41,7 +41,7 @@ If there are uncommitted changes:
   > **Uncommitted changes detected.**
   >
   > Please commit or stash your changes before updating:
-  > - Run `/flow/commit` to commit your changes
+  > - Run `/flow:commit` to commit your changes
   > - Or run `git stash` to temporarily stash them
 
 ## Step 3: Fetch Latest from Origin

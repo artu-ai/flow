@@ -32,7 +32,7 @@ If no issue ID can be determined:
 - Output error and stop:
   > **No issue ID found.**
   >
-  > Please provide an issue ID: `/flow/continue ABC-123`
+  > Please provide an issue ID: `/flow:continue ABC-123`
 
 ## Step 2: Fetch Issue Details
 
@@ -100,7 +100,7 @@ If all tasks are complete:
 ```
 All tasks completed! 🎉
 
-Run /flow/ready to mark the PR ready for review.
+Run /flow:ready to mark the PR ready for review.
 ```
 
 ## Example Output

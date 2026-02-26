@@ -19,6 +19,16 @@ argument-hint: [--no-verify]
 
 Based on the above changes:
 
+### Pre-check: Ensure not on main branch
+
+If the current branch is `main` or `master`, **STOP immediately**. Do NOT commit directly to main. Tell the user:
+
+```
+You're on the main branch. Please create a feature branch first using `/flow:checkout` or switch to an existing branch before committing.
+```
+
+Do NOT proceed with any further steps.
+
 ### Step 0: Quality checks
 
 If `$ARGUMENTS` contains `--no-verify`, skip this step entirely.

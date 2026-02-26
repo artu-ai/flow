@@ -34,7 +34,7 @@ Output and stop:
 ```
 PR not merged yet: <pr-url>
 
-Please merge the PR first, then run /flow/done again.
+Please merge the PR first, then run /flow:done again.
 ```
 
 Do not proceed to the next steps.
@@ -144,7 +144,7 @@ You're in a worktree. To complete cleanup:
   2. git pull
   3. git worktree remove <current-worktree-path>
 
-Or run /flow/clean to remove all stale worktrees.
+Or run /flow:clean to remove all stale worktrees.
 ```
 
 If no conversations were found to link, omit the "Claude conversations" line.

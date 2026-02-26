@@ -32,7 +32,7 @@ If no issue ID can be determined:
 - Output error and stop:
   > **No issue ID found.**
   >
-  > Please provide an issue ID: `/flow/progress ABC-123`
+  > Please provide an issue ID: `/flow:progress ABC-123`
 
 ## Step 2: Fetch Issue Details
 
