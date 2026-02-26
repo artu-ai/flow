@@ -1,7 +1,7 @@
 ---
 description: Checkout a branch for a Linear issue
 argument-hint: [issue-id]
-allowed-tools: mcp__plugin_linear_linear__get_issue, mcp__claude_ai_Linear__get_issue, mcp__plugin_linear_linear__update_issue, mcp__claude_ai_Linear__save_issue, Bash(git worktree:*), Bash(git push:*), Bash(git rev-parse:*), Bash(basename:*), Bash(cp:*), Bash(test:*)
+allowed-tools: mcp__claude_ai_Linear__get_issue, mcp__claude_ai_Linear__save_issue, Bash(git worktree:*), Bash(git push:*), Bash(git rev-parse:*), Bash(basename:*), Bash(cp:*), Bash(test:*)
 ---
 
 # Checkout Linear Issue Branch

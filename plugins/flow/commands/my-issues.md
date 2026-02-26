@@ -1,7 +1,7 @@
 ---
 description: List your assigned Linear issues
 argument-hint: [status]
-allowed-tools: mcp__plugin_linear_linear__list_issues, mcp__claude_ai_Linear__list_issues
+allowed-tools: mcp__claude_ai_Linear__list_issues
 ---
 
 # My Issues
