@@ -91,22 +91,22 @@ Linear + GitHub workflow automation. Supports **parallel development** using git
 
 | Command | Description |
 |---------|-------------|
-| `/flow/checkout [issue-id]` | Create a worktree and branch for a Linear issue |
-| `/flow/commit [issue-id]` | Commit, create draft PR, comment on Linear issue |
-| `/flow/commit-leftovers` | Commit remaining unrelated changes |
-| `/flow/create-issue` | Create a new Linear issue |
-| `/flow/done` | Complete issue after PR merge, clean up worktree |
-| `/flow/draft` | Convert PR back to draft |
-| `/flow/ready` | Mark PR as ready for review |
-| `/flow/cancel` | Cancel work, close PR, clean up worktree |
-| `/flow/my-issues` | List assigned Linear issues |
-| `/flow/next-issue` | Pick up next prioritized issue |
-| `/flow/progress` | Show current issue and PR status |
-| `/flow/continue` | Resume work on an in-progress issue |
-| `/flow/sync` | Sync branch with main |
-| `/flow/clean` | Clean up stale branches and worktrees |
-| `/flow/standup` | Generate standup summary |
-| `/flow/update` | Post progress update to issue |
+| `/flow:checkout [issue-id]` | Create a worktree and branch for a Linear issue |
+| `/flow:commit [issue-id]` | Commit, create draft PR, comment on Linear issue |
+| `/flow:commit-leftovers` | Commit remaining unrelated changes |
+| `/flow:create-issue` | Create a new Linear issue |
+| `/flow:done` | Complete issue after PR merge, clean up worktree |
+| `/flow:draft` | Convert PR back to draft |
+| `/flow:ready` | Mark PR as ready for review |
+| `/flow:cancel` | Cancel work, close PR, clean up worktree |
+| `/flow:my-issues` | List assigned Linear issues |
+| `/flow:next-issue` | Pick up next prioritized issue |
+| `/flow:progress` | Show current issue and PR status |
+| `/flow:continue` | Resume work on an in-progress issue |
+| `/flow:sync` | Sync branch with main |
+| `/flow:clean` | Clean up stale branches and worktrees |
+| `/flow:standup` | Generate standup summary |
+| `/flow:update` | Post progress update to issue |
 
 #### Skills
 

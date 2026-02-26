@@ -24,7 +24,7 @@ If `$1` is empty or not provided:
 - If no issue ID can be found, respond with:
   > **No issue ID found.**
   >
-  > Please provide an issue ID: `/flow/checkout ABC-123`
+  > Please provide an issue ID: `/flow:checkout ABC-123`
   >
   > Or discuss a Linear issue first, then run the command again.
 
@@ -107,7 +107,7 @@ Issue: <issue-identifier> - <issue-title> (In Progress)
 To start working, open a new terminal and run:
   cd <worktree-path>
 
-Run /flow/commit when done to create draft PR.
+Run /flow:commit when done to create draft PR.
 ```
 
 If any step fails, explain the error and what was completed successfully.

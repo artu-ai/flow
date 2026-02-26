@@ -102,7 +102,7 @@ If the conversation does NOT contain enough information to create a useful issue
 > - A clear problem statement or feature request
 > - Context about what needs to be done
 >
-> Try discussing what you want to accomplish, and then run `/flow/create-issue $1 $2` again.
+> Try discussing what you want to accomplish, and then run `/flow:create-issue $1 $2` again.
 
 Do NOT proceed to create an issue if the context is insufficient.
 

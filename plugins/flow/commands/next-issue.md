@@ -66,7 +66,7 @@ If no available issues:
 ```
 No Todo or Backlog issues assigned to you.
 
-Run /flow/create-issue to create a new one, or check /flow/my-issues for other statuses.
+Run /flow:create-issue to create a new one, or check /flow:my-issues for other statuses.
 ```
 
 ## Example Output
