@@ -10,10 +10,10 @@ argument-hint: [--no-verify]
 - Current git diff (staged and unstaged changes): !`git diff HEAD`
 - Current branch: !`git branch --show-current`
 - Recent commits: !`git log --oneline -10`
-- pnpm available: !`command -v pnpm 2>/dev/null && echo "yes" || echo "no"`
-- Has lint script: !`grep -q '"lint"' package.json 2>/dev/null && echo "yes" || echo "no"`
-- Has check-types script: !`grep -q '"check-types"' package.json 2>/dev/null && echo "yes" || echo "no"`
-- Has check-circular script: !`grep -q '"check-circular"' package.json 2>/dev/null && echo "yes" || echo "no"`
+- pnpm available: !`command -v pnpm 2>/dev/null`
+- Has lint script: !`grep -c '"lint"' package.json 2>/dev/null`
+- Has check-types script: !`grep -c '"check-types"' package.json 2>/dev/null`
+- Has check-circular script: !`grep -c '"check-circular"' package.json 2>/dev/null`
 
 ## Your task
 
