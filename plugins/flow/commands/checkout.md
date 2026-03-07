@@ -1,7 +1,7 @@
 ---
 description: Checkout a branch for a Linear issue
 argument-hint: [issue-id]
-allowed-tools: mcp__claude_ai_Linear__get_issue, mcp__claude_ai_Linear__save_issue, Bash(git worktree:*), Bash(git push:*), Bash(git rev-parse:*), Bash(basename:*), Bash(cp:*), Bash(test:*)
+allowed-tools: mcp__claude_ai_Linear__get_issue, mcp__claude_ai_Linear__save_issue, Bash(git worktree:*), Bash(git push:*), Bash(git rev-parse:*), Bash(basename:*), Bash(cp:*), Bash(test:*), Bash(echo:*), Bash(code:*)
 ---
 
 # Checkout Linear Issue Branch
@@ -76,7 +76,19 @@ git worktree list
 
    Use the git branch name from the issue.
 
-2. **Push and set upstream** (from the new worktree):
+2. **Rewrite the `.git` file** to use a relative path so git resolves correctly both on the host and inside devcontainers:
+
+   ```bash
+   echo "gitdir: ../<repo-name>/.git/worktrees/<worktree-dir-name>" > <worktree-path>/.git
+   ```
+
+   Where `<worktree-dir-name>` is `basename <worktree-path>` (e.g., `my-app-ABC-123`).
+
+   > This is critical. The default `.git` file contains an absolute host path
+   > that breaks inside containers. The relative path resolves correctly from
+   > `/workspaces/my-app-ABC-123/` to `/workspaces/my-app/.git/worktrees/my-app-ABC-123/`.
+
+3. **Push and set upstream** (from the new worktree):
    ```bash
    git -C <worktree-path> push -u origin <branch-name>
    ```
@@ -91,11 +103,21 @@ test -f <main-repo-path>/.env && cp <main-repo-path>/.env <worktree-path>/.env
 
 This ensures the new worktree has the same environment configuration.
 
-## Step 6: Update Issue Status
+## Step 6: Open Worktree in VS Code
+
+Open the worktree as a new VS Code window:
+
+```bash
+code -n <worktree-path>
+```
+
+VS Code will detect `.devcontainer/` (if present) and prompt to reopen in a container, starting an isolated devcontainer for this issue.
+
+## Step 7: Update Issue Status
 
 Use `update_issue` to set the issue status to "In Progress".
 
-## Step 7: Output the Result
+## Step 8: Output the Result
 
 After completing all steps, output:
 
