@@ -1,6 +1,6 @@
 ---
 description: Convert open PR back to draft
-allowed-tools: Bash(gh pr ready:*), Bash(gh pr view:*)
+allowed-tools: Bash(gh pr ready *), Bash(gh pr view *)
 ---
 
 # Convert PR to Draft

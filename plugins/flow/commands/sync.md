@@ -1,7 +1,7 @@
 ---
 description: Sync progress checkboxes in Linear issue based on completed work
 argument-hint: [issue-id]
-allowed-tools: Bash(git branch:*), Bash(git log:*), Bash(git diff:*), mcp__claude_ai_Linear__get_issue, mcp__claude_ai_Linear__save_issue
+allowed-tools: Bash(git branch *), Bash(git log *), Bash(git diff *), mcp__claude_ai_Linear__get_issue, mcp__claude_ai_Linear__save_issue
 ---
 
 # Sync Progress

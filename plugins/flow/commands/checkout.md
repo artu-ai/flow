@@ -1,7 +1,7 @@
 ---
 description: Checkout a branch for a Linear issue
-argument-hint: [issue-id]
-allowed-tools: mcp__claude_ai_Linear__get_issue, mcp__claude_ai_Linear__save_issue, Bash(git worktree:*), Bash(git push:*), Bash(git rev-parse:*), Bash(basename:*), Bash(cp:*), Bash(test:*)
+argument-hint: [issue-id] [--no-worktree]
+allowed-tools: mcp__claude_ai_Linear__get_issue, mcp__claude_ai_Linear__save_issue, Bash(git worktree *), Bash(git push *), Bash(git rev-parse *), Bash(git checkout *), Bash(basename *), Bash(cp *), Bash(test *), Bash(echo *), Bash(code *)
 ---
 
 # Checkout Linear Issue Branch
@@ -11,6 +11,7 @@ Create a worktree and branch for a Linear issue, enabling parallel development.
 ## Arguments
 
 - **Issue ID**: `$1` - The Linear issue ID or identifier (e.g., "ABC-123"). If not provided, infer from conversation context.
+- **Mode**: `$2` - Pass `--no-worktree` to create a regular branch instead of a worktree. Useful when you don't need an isolated devcontainer.
 
 ## Step 1: Get the Issue ID
 
@@ -38,7 +39,17 @@ Use `get_issue` with the issue ID to retrieve:
 
 If the issue is not found, report the error and stop.
 
-## Step 3: Determine Worktree Path
+## Step 3: Check Mode
+
+If `$2` is `--no-worktree`, skip to **Step 3b: Branch-only checkout**.
+
+Otherwise, continue to **Step 3a: Worktree checkout**.
+
+---
+
+### Step 3a: Worktree checkout
+
+#### Determine Worktree Path
 
 Get the repository root and name:
 
@@ -54,7 +65,7 @@ The worktree path will be: `<repo-parent>/<repo-name>-<issue-identifier>`
 
 For example, if the repo is at `/Users/alex/Projects/my-app` and the issue is `ABC-123`, the worktree path is `/Users/alex/Projects/my-app-ABC-123`.
 
-## Step 4: Create Worktree and Branch
+#### Create Worktree and Branch
 
 Check if the worktree already exists:
 
@@ -76,12 +87,24 @@ git worktree list
 
    Use the git branch name from the issue.
 
-2. **Push and set upstream** (from the new worktree):
+2. **Rewrite the `.git` file** to use a relative path so git resolves correctly both on the host and inside devcontainers:
+
+   ```bash
+   echo "gitdir: ../<repo-name>/.git/worktrees/<worktree-dir-name>" > <worktree-path>/.git
+   ```
+
+   Where `<worktree-dir-name>` is `basename <worktree-path>` (e.g., `my-app-ABC-123`).
+
+   > This is critical. The default `.git` file contains an absolute host path
+   > that breaks inside containers. The relative path resolves correctly from
+   > `/workspaces/my-app-ABC-123/` to `/workspaces/my-app/.git/worktrees/my-app-ABC-123/`.
+
+3. **Push and set upstream** (from the new worktree):
    ```bash
    git -C <worktree-path> push -u origin <branch-name>
    ```
 
-## Step 5: Copy Environment Files
+#### Copy Environment Files
 
 If a `.env` file exists in the main worktree, copy it to the new worktree:
 
@@ -91,13 +114,45 @@ test -f <main-repo-path>/.env && cp <main-repo-path>/.env <worktree-path>/.env
 
 This ensures the new worktree has the same environment configuration.
 
-## Step 6: Update Issue Status
+#### Open Worktree in VS Code
+
+Open the worktree as a new VS Code window:
+
+```bash
+code -n <worktree-path>
+```
+
+VS Code will detect `.devcontainer/` (if present) and prompt to reopen in a container, starting an isolated devcontainer for this issue.
+
+Skip to **Step 4: Update Issue Status**.
+
+---
+
+### Step 3b: Branch-only checkout
+
+Create and switch to the branch without a worktree:
+
+```bash
+git checkout -b <branch-name>
+```
+
+Push and set upstream:
+
+```bash
+git push -u origin <branch-name>
+```
+
+Continue to **Step 4: Update Issue Status**.
+
+---
+
+## Step 4: Update Issue Status
 
 Use `update_issue` to set the issue status to "In Progress".
 
-## Step 7: Output the Result
+## Step 5: Output the Result
 
-After completing all steps, output:
+**If worktree mode (default):**
 
 ```
 Worktree: <worktree-path>
@@ -106,6 +161,15 @@ Issue: <issue-identifier> - <issue-title> (In Progress)
 
 To start working, open a new terminal and run:
   cd <worktree-path>
+
+Run /flow:commit when done to create draft PR.
+```
+
+**If `--no-worktree` mode:**
+
+```
+Branch: <branch-name>
+Issue: <issue-identifier> - <issue-title> (In Progress)
 
 Run /flow:commit when done to create draft PR.
 ```

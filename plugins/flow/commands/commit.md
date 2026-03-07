@@ -1,5 +1,5 @@
 ---
-allowed-tools: Bash(git add:*), Bash(git status:*), Bash(git commit:*), Bash(git branch:*), Bash(git log:*), Bash(git push:*), Bash(gh pr view:*), Bash(gh pr create:*), Bash(pnpm lint:*), Bash(pnpm check-types:*), Bash(pnpm check-circular:*), Bash(command -v pnpm:*), Bash(grep:*), Bash(command -v pnpm 2>/dev/null && echo "yes" || echo "no"), Bash(grep -q '"lint"' package.json 2>/dev/null && echo "yes" || echo "no"), Bash(grep -q '"check-types"' package.json 2>/dev/null && echo "yes" || echo "no"), Bash(grep -q '"check-circular"' package.json 2>/dev/null && echo "yes" || echo "no"), mcp__claude_ai_Linear__create_comment, mcp__claude_ai_Linear__get_issue, mcp__claude_ai_Linear__save_issue
+allowed-tools: Bash(git add *), Bash(git status *), Bash(git commit *), Bash(git branch *), Bash(git log *), Bash(git push *), Bash(gh pr view *), Bash(gh pr create *), Bash(pnpm lint *), Bash(pnpm check-types *), Bash(pnpm check-circular *), Bash(command -v pnpm *), Bash(grep *), mcp__claude_ai_Linear__save_comment, mcp__claude_ai_Linear__get_issue, mcp__claude_ai_Linear__save_issue
 description: Create a git commit, create draft PR if needed, and comment on Linear issue
 argument-hint: [--no-verify]
 ---
@@ -91,7 +91,7 @@ Only update checkboxes for work that was actually completed in this commit. Skip
 
 ### Step 5: Add a comment to the Linear issue
 
-Use `create_comment` to add a **brief** comment. Keep it minimal - avoid verbose explanations.
+Use `save_comment` to add a **brief** comment. Keep it minimal - avoid verbose explanations.
 
 Format:
 

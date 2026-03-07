@@ -1,7 +1,7 @@
 ---
 description: Show progress and todos from the current Linear issue
 argument-hint: [issue-id]
-allowed-tools: Bash(git branch:*), mcp__claude_ai_Linear__get_issue
+allowed-tools: Bash(git branch *), mcp__claude_ai_Linear__get_issue
 ---
 
 # Issue Progress
