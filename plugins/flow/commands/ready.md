@@ -1,7 +1,7 @@
 ---
 description: Move PR from draft to open and update Linear issue
 argument-hint: [issue-id]
-allowed-tools: Bash(gh pr ready:*), Bash(gh pr view:*), Bash(git branch:*), mcp__claude_ai_Linear__create_comment
+allowed-tools: Bash(gh pr ready *), Bash(gh pr view *), Bash(git branch *), mcp__claude_ai_Linear__save_comment
 ---
 
 # Mark PR Ready for Review
@@ -53,7 +53,7 @@ If no issue ID can be determined:
 
 ### Step 4: Add a comment to the Linear issue
 
-Use `create_comment` to add a comment to the issue:
+Use `save_comment` to add a comment to the issue:
 
 ```
 PR opened and ready for review: <pr-url>

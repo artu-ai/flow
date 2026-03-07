@@ -1,7 +1,7 @@
 ---
 description: Show progress and recommend next todo(s) to tackle
 argument-hint: [issue-id]
-allowed-tools: Bash(git branch:*), Bash(git rev-parse:*), Bash(basename:*), Bash(git worktree:*), Bash(code:*), mcp__claude_ai_Linear__get_issue
+allowed-tools: Bash(git branch *), Bash(git rev-parse *), Bash(basename *), Bash(git worktree *), Bash(code *), mcp__claude_ai_Linear__get_issue
 ---
 
 # Continue
