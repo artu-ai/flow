@@ -1,4 +1,5 @@
 ---
+disable-model-invocation: true
 description: Convert open PR back to draft
 allowed-tools: Bash(gh pr ready *), Bash(gh pr view *)
 ---
