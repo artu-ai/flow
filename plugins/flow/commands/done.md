@@ -1,7 +1,7 @@
 ---
 description: Complete work on current issue after PR is merged
 argument-hint: [issue-id]
-allowed-tools: Bash(gh pr view:*), Bash(git branch:*), Bash(git worktree:*), Bash(git pull:*), Bash(git rev-parse:*), Bash(cd:*), Bash(ls:*), Bash(ln:*), Bash(for:*), Bash(echo:*), Bash(basename:*), Bash(sed:*), mcp__claude_ai_Linear__get_issue, mcp__claude_ai_Linear__save_issue
+allowed-tools: Bash(gh pr view *), Bash(git branch *), Bash(git worktree *), Bash(git pull *), Bash(git rev-parse *), Bash(cd *), Bash(ls *), Bash(ln *), Bash(for *), Bash(echo *), Bash(basename *), Bash(sed *), mcp__claude_ai_Linear__get_issue, mcp__claude_ai_Linear__save_issue
 ---
 
 # Done

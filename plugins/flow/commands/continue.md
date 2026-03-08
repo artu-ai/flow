@@ -1,7 +1,7 @@
 ---
 description: Show progress and recommend next todo(s) to tackle
 argument-hint: [issue-id]
-allowed-tools: Bash(git branch:*), mcp__claude_ai_Linear__get_issue
+allowed-tools: Bash(git branch *), Bash(git rev-parse *), Bash(basename *), Bash(git worktree *), Bash(code *), mcp__claude_ai_Linear__get_issue
 ---
 
 # Continue
@@ -34,11 +34,37 @@ If no issue ID can be determined:
   >
   > Please provide an issue ID: `/flow:continue ABC-123`
 
-## Step 2: Fetch Issue Details
+## Step 2: Ensure Worktree Window is Open
+
+Check if the issue has an associated worktree:
+
+```bash
+git rev-parse --show-toplevel
+```
+
+```bash
+basename $(git rev-parse --show-toplevel)
+```
+
+Compute the expected sibling worktree path: `<repo-parent>/<repo-name>-<issue-identifier>`
+
+Check if the worktree exists:
+
+```bash
+git worktree list
+```
+
+If a worktree exists for this issue and the current directory is NOT already inside it, open it:
+
+```bash
+code -n <worktree-path>
+```
+
+## Step 3: Fetch Issue Details
 
 Use `get_issue` to fetch the issue title and description.
 
-## Step 3: Display Progress
+## Step 4: Display Progress
 
 Parse the description for checkboxes and display current progress:
 
@@ -66,7 +92,7 @@ No progress checkboxes found in issue description.
 
 Then stop (no recommendations without checkboxes).
 
-## Step 4: Recommend Next Task(s)
+## Step 5: Recommend Next Task(s)
 
 Analyze the remaining (uncompleted, non-canceled) tasks and recommend what to work on next.
 

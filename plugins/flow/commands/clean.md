@@ -13,7 +13,7 @@ You need to execute the following bash commands to clean up stale local branches
    ```bash
    git branch -v
    ```
-   
+
    Note: Branches with a '+' prefix have associated worktrees and must have their worktrees removed before deletion.
 
 2. **Next, identify worktrees that need to be removed for [gone] branches**
@@ -22,7 +22,7 @@ You need to execute the following bash commands to clean up stale local branches
    git worktree list
    ```
 
-3. **Finally, remove worktrees and delete [gone] branches (handles both regular and worktree branches)**
+3. **Remove worktrees and delete [gone] branches (handles both regular and worktree branches)**
    Execute this command:
    ```bash
    # Process all [gone] branches, removing '+' prefix if present
@@ -40,6 +40,26 @@ You need to execute the following bash commands to clean up stale local branches
    done
    ```
 
+4. **Clean up stale sibling worktree directories**
+
+   Worktrees are created as sibling directories of the repo root (e.g., `../repo-name-ABC-123`). After removing worktrees from git, check for leftover sibling directories:
+
+   ```bash
+   REPO_ROOT=$(git rev-parse --show-toplevel)
+   REPO_NAME=$(basename "$REPO_ROOT")
+   # List sibling directories matching the worktree naming convention
+   for dir in "${REPO_ROOT}/../${REPO_NAME}-"*/; do
+     if [ -d "$dir" ]; then
+       resolved=$(cd "$dir" && pwd)
+       # Check if this directory is still a registered worktree
+       if ! git worktree list | grep -q "^${resolved} "; then
+         echo "Removing stale worktree directory: $resolved"
+         rm -rf "$resolved"
+       fi
+     fi
+   done
+   ```
+
 ## Expected Behavior
 
 After executing these commands, you will:
@@ -47,7 +67,8 @@ After executing these commands, you will:
 - See a list of all local branches with their status
 - Identify and remove any worktrees associated with [gone] branches
 - Delete all branches marked as [gone]
-- Provide feedback on which worktrees and branches were removed
+- Remove any stale sibling worktree directories (matching `<repo-name>-*` in the parent directory)
+- Provide feedback on which worktrees, branches, and directories were removed
 
-If no branches are marked as [gone], report that no cleanup was needed.
+If no branches are marked as [gone] and no stale directories exist, report that no cleanup was needed.
 
