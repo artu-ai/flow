@@ -1,4 +1,5 @@
 ---
+disable-model-invocation: true
 description: Move PR from draft to open and update Linear issue
 argument-hint: [issue-id]
 allowed-tools: Bash(gh pr ready *), Bash(gh pr view *), Bash(git branch *), mcp__claude_ai_Linear__save_comment

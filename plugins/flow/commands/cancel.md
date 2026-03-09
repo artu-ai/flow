@@ -1,4 +1,5 @@
 ---
+disable-model-invocation: true
 description: Cancel work on current issue and close the PR
 argument-hint: [reason]
 allowed-tools: Bash(gh pr view *), Bash(gh pr comment *), Bash(gh pr close *), Bash(git branch *), Bash(git worktree *), Bash(git pull *), Bash(git rev-parse *), mcp__claude_ai_Linear__save_issue

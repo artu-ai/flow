@@ -1,4 +1,5 @@
 ---
+disable-model-invocation: true
 allowed-tools: Bash(git add *), Bash(git status *), Bash(git commit *), Bash(git branch *), Bash(git log *), Bash(git push *), Bash(gh pr view *), Bash(gh pr create *), Bash(pnpm lint *), Bash(pnpm check-types *), Bash(pnpm check-circular *), Bash(command -v pnpm *), Bash(grep *), mcp__claude_ai_Linear__save_comment, mcp__claude_ai_Linear__get_issue, mcp__claude_ai_Linear__save_issue
 description: Create a git commit, create draft PR if needed, and comment on Linear issue
 argument-hint: [--no-verify]

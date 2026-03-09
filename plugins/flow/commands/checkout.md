@@ -1,4 +1,5 @@
 ---
+disable-model-invocation: true
 description: Checkout a branch for a Linear issue
 argument-hint: [issue-id] [--no-worktree]
 allowed-tools: mcp__claude_ai_Linear__get_issue, mcp__claude_ai_Linear__save_issue, Bash(git worktree *), Bash(git push *), Bash(git rev-parse *), Bash(git checkout *), Bash(basename *), Bash(cp *), Bash(test *), Bash(echo *), Bash(code *)

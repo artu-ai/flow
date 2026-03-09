@@ -1,4 +1,5 @@
 ---
+disable-model-invocation: true
 description: Fetch the latest changes from main and merge them into the current branch
 allowed-tools: Bash(git fetch *), Bash(git merge *), Bash(git status *), Bash(git branch *), Bash(git diff *), Bash(git rev-parse *)
 ---

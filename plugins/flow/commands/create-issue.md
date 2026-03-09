@@ -1,4 +1,5 @@
 ---
+disable-model-invocation: true
 description: Create a Linear issue from the current conversation
 argument-hint: [project] [assignee] [priority]
 allowed-tools: mcp__claude_ai_Linear__list_projects, mcp__claude_ai_Linear__list_users, mcp__claude_ai_Linear__list_issue_labels, mcp__claude_ai_Linear__save_issue
