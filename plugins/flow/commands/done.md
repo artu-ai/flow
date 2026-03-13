@@ -2,7 +2,7 @@
 disable-model-invocation: true
 description: Complete work on current issue after PR is merged
 argument-hint: [issue-id]
-allowed-tools: Bash(gh pr view *), Bash(git branch *), Bash(git worktree *), Bash(git pull *), Bash(git rev-parse *), Bash(cd *), Bash(ls *), Bash(ln *), Bash(for *), Bash(echo *), Bash(basename *), Bash(sed *), mcp__claude_ai_Linear__get_issue, mcp__claude_ai_Linear__save_issue
+allowed-tools: Bash(gh pr view *), Bash(git branch *), Bash(git worktree *), Bash(git pull *), Bash(git checkout *), Bash(git rev-parse *), Bash(pwd), Bash(cd *), Bash(ls *), Bash(ln *), Bash(for *), Bash(echo *), Bash(basename *), Bash(sed *), Bash(worktree_claude_dir=*), Bash(main_claude_dir=*), mcp__claude_ai_Linear__get_issue, mcp__claude_ai_Linear__save_issue
 ---
 
 # Done
@@ -155,7 +155,11 @@ If no conversations were found to link, omit the "Claude conversations" line.
 Checkout the base branch and pull latest:
 
 ```bash
-git checkout <baseRefName> && git pull
+git checkout <baseRefName>
+```
+
+```bash
+git pull
 ```
 
 ## Output

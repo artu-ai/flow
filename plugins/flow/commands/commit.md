@@ -1,6 +1,6 @@
 ---
 disable-model-invocation: true
-allowed-tools: Bash(git add *), Bash(git status *), Bash(git commit *), Bash(git branch *), Bash(git log *), Bash(git push *), Bash(gh pr view *), Bash(gh pr create *), Bash(pnpm lint *), Bash(pnpm check-types *), Bash(pnpm check-circular *), Bash(command -v pnpm *), Bash(grep *), mcp__claude_ai_Linear__save_comment, mcp__claude_ai_Linear__get_issue, mcp__claude_ai_Linear__save_issue
+allowed-tools: Bash(git add *), Bash(git status *), Bash(git commit *), Bash(git branch *), Bash(git log *), Bash(git push *), Bash(git diff *), Bash(gh pr view *), Bash(gh pr create *), Bash(pnpm *), Bash(grep *), mcp__claude_ai_Linear__save_comment, mcp__claude_ai_Linear__get_issue, mcp__claude_ai_Linear__save_issue
 description: Create a git commit, create draft PR if needed, and comment on Linear issue
 argument-hint: [--no-verify]
 ---
@@ -11,10 +11,10 @@ argument-hint: [--no-verify]
 - Current git diff (staged and unstaged changes): !`git diff HEAD`
 - Current branch: !`git branch --show-current`
 - Recent commits: !`git log --oneline -10`
-- pnpm available: !`command -v pnpm 2>/dev/null && echo "yes" || echo "no"`
-- Has lint script: !`grep -q '"lint"' package.json 2>/dev/null && echo "yes" || echo "no"`
-- Has check-types script: !`grep -q '"check-types"' package.json 2>/dev/null && echo "yes" || echo "no"`
-- Has check-circular script: !`grep -q '"check-circular"' package.json 2>/dev/null && echo "yes" || echo "no"`
+- pnpm available: !`pnpm --version`
+- Has lint script: !`grep -c '"lint"' package.json`
+- Has check-types script: !`grep -c '"check-types"' package.json`
+- Has check-circular script: !`grep -c '"check-circular"' package.json`
 
 ## Your task
 

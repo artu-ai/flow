@@ -2,7 +2,7 @@
 disable-model-invocation: true
 description: Commit unstaged changes in logical separate commits
 argument-hint: [--no-verify]
-allowed-tools: Bash(git add *), Bash(git status *), Bash(git commit *), Bash(git diff *), Bash(git push *), Bash(git branch *), Bash(pnpm lint *), Bash(pnpm check-types *), Bash(pnpm check-circular *), Bash(command -v pnpm *), Bash(grep *), mcp__claude_ai_Linear__get_issue
+allowed-tools: Bash(git add *), Bash(git status *), Bash(git commit *), Bash(git diff *), Bash(git push *), Bash(git branch *), Bash(pnpm *), Bash(grep *), mcp__claude_ai_Linear__get_issue
 ---
 
 # Commit Leftovers
@@ -15,10 +15,10 @@ Analyze unstaged changes and divide them into logical, separate commits.
 - Staged changes: !`git diff --cached --stat`
 - Unstaged changes: !`git diff --stat`
 - Current branch: !`git branch --show-current`
-- pnpm available: !`command -v pnpm 2>/dev/null && echo "yes" || echo "no"`
-- Has lint script: !`grep -q '"lint"' package.json 2>/dev/null && echo "yes" || echo "no"`
-- Has check-types script: !`grep -q '"check-types"' package.json 2>/dev/null && echo "yes" || echo "no"`
-- Has check-circular script: !`grep -q '"check-circular"' package.json 2>/dev/null && echo "yes" || echo "no"`
+- pnpm available: !`pnpm --version`
+- Has lint script: !`grep -c '"lint"' package.json`
+- Has check-types script: !`grep -c '"check-types"' package.json`
+- Has check-circular script: !`grep -c '"check-circular"' package.json`
 
 ## Your task
 

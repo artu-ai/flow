@@ -2,7 +2,7 @@
 disable-model-invocation: true
 description: Checkout a branch for a Linear issue
 argument-hint: [issue-id] [--no-worktree]
-allowed-tools: mcp__claude_ai_Linear__get_issue, mcp__claude_ai_Linear__save_issue, Bash(git worktree *), Bash(git push *), Bash(git rev-parse *), Bash(git checkout *), Bash(basename *), Bash(cp *), Bash(test *), Bash(echo *), Bash(code *)
+allowed-tools: mcp__claude_ai_Linear__get_issue, mcp__claude_ai_Linear__save_issue, Bash(git worktree *), Bash(git push *), Bash(git -C *), Bash(git rev-parse *), Bash(git checkout *), Bash(basename *), Bash(cp *), Bash(test *), Bash(echo *), Bash(code *)
 ---
 
 # Checkout Linear Issue Branch
@@ -110,7 +110,13 @@ git worktree list
 If a `.env` file exists in the main worktree, copy it to the new worktree:
 
 ```bash
-test -f <main-repo-path>/.env && cp <main-repo-path>/.env <worktree-path>/.env
+test -f <main-repo-path>/.env
+```
+
+If the file exists (exit code 0):
+
+```bash
+cp <main-repo-path>/.env <worktree-path>/.env
 ```
 
 This ensures the new worktree has the same environment configuration.

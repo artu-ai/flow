@@ -1,6 +1,7 @@
 ---
 disable-model-invocation: true
 description: Cleans up all git branches marked as [gone] (branches that have been deleted on the remote but still exist locally), including removing associated worktrees.
+allowed-tools: Bash(git branch *), Bash(git worktree *), Bash(git rev-parse *), Bash(rm *), Bash(basename *), Bash(REPO_ROOT=*), Bash(for *)
 ---
 
 ## Your Task
