@@ -16,9 +16,9 @@ Analyze unstaged changes and divide them into logical, separate commits.
 - Unstaged changes: !`git diff --stat`
 - Current branch: !`git branch --show-current`
 - pnpm available: !`pnpm --version`
-- Has lint script: !`grep -c '"lint"' package.json`
-- Has check-types script: !`grep -c '"check-types"' package.json`
-- Has check-circular script: !`grep -c '"check-circular"' package.json`
+- Has lint script: !`grep -c lint package.json`
+- Has check-types script: !`grep -c check-types package.json`
+- Has check-circular script: !`grep -c check-circular package.json`
 
 ## Your task
 
