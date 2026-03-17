@@ -37,6 +37,14 @@ Extract the issue identifier (e.g., `ABC-123`) using a pattern like letters-numb
 
 If an issue ID was mentioned in the conversation, use that.
 
+### No Linear Issue Found
+
+If the branch name doesn't match the Linear `ABC-123` pattern and no issue ID was mentioned in conversation, inform the user:
+
+> **No Linear issue linked to this branch.** This branch doesn't appear to be associated with a Linear issue. Issue context is only available for Linear-linked branches.
+
+Do not proceed with fetching.
+
 ## Fetching Issue Details
 
 Use the `get_issue` tool with the issue ID:

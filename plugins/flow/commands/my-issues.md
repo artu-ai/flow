@@ -6,6 +6,8 @@ allowed-tools: mcp__claude_ai_Linear__list_issues
 
 # My Issues
 
+> **Requires Linear.** This command lists issues from Linear and cannot be used without it.
+
 List your assigned Linear issues.
 
 ## Arguments

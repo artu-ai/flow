@@ -29,12 +29,14 @@ If `$1` is empty:
 - Extract the issue ID from the branch name (Linear branches typically follow the format `username/abc-123-description`)
 - Look for a pattern like `ABC-123` (letters-numbers) in the branch name
 
-If no issue ID can be determined:
+If no issue ID can be determined (branch name doesn't match Linear `ABC-123` pattern):
 
-- Output error and stop:
-  > **No issue ID found.**
+- Output and stop:
+  > **This command requires a Linear issue.**
   >
-  > Please provide an issue ID: `/flow:sync ABC-123`
+  > Your branch doesn't appear to be linked to a Linear issue. Provide an issue ID: `/flow:sync ABC-123`
+  >
+  > This command syncs Linear issue checkboxes with completed work. It is not available for plain branches.
 
 ## Step 2: Fetch Issue Details
 

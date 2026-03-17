@@ -7,6 +7,8 @@ allowed-tools: mcp__claude_ai_Linear__list_projects, mcp__claude_ai_Linear__list
 
 # Create Linear Issue
 
+> **Requires Linear.** This command creates issues in Linear and cannot be used without it.
+
 Create a Linear issue based on the current conversation context.
 
 ## Arguments

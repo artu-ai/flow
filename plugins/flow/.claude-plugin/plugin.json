@@ -1,7 +1,7 @@
 {
   "name": "flow",
   "description": "Allows you to create and manage linear issues and github pr requests according to company best practices.",
-  "version": "1.0.0",
+  "version": "1.1.0",
   "author": {
     "name": "agutier6"
   }

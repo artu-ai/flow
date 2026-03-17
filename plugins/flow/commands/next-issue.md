@@ -5,6 +5,8 @@ allowed-tools: mcp__claude_ai_Linear__list_issues, mcp__claude_ai_Linear__get_is
 
 # Next Issue
 
+> **Requires Linear.** This command analyzes Linear issues and cannot be used without it.
+
 Analyze your assigned issues and recommend which one to work on next.
 
 ## Step 1: Fetch Available Issues
