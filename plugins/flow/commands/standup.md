@@ -6,6 +6,8 @@ allowed-tools: mcp__claude_ai_Linear__list_issues, mcp__claude_ai_Linear__get_us
 
 # Daily Standup Summary
 
+> **Requires Linear.** This command fetches activity from Linear and cannot be used without it.
+
 Generate a standup message summarizing your Linear activity for team communication.
 
 ## Standup Windows (Mexico City Time)

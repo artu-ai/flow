@@ -72,15 +72,27 @@ gh pr view --json url 2>/dev/null
 
 If no PR exists (command fails), create a draft PR:
 
+**If an issue ID was found (Linear branch):**
+
 1. Use `get_issue` with the issue ID to get the issue title
 2. Create the draft PR:
    ```bash
    gh pr create --draft --title "<issue-title>" --body "Resolves <issue-identifier>"
    ```
 
+**If no issue ID was found (plain branch):**
+
+1. Derive the PR title from the commit message or branch name
+2. Create the draft PR:
+   ```bash
+   gh pr create --draft --title "<derived-title>" --body ""
+   ```
+
 If PR already exists, skip this step.
 
 ### Step 4: Update progress checkboxes (if available)
+
+**Skip this step entirely if no issue ID was found.**
 
 Use `get_issue` to fetch the issue description. If the description contains progress tracking checkboxes (e.g., `- [ ] Task item`), check off any items that were completed by this commit.
 
@@ -91,6 +103,8 @@ Use `update_issue` to update the description with the checked items:
 Only update checkboxes for work that was actually completed in this commit. Skip this step if no checkboxes exist.
 
 ### Step 5: Add a comment to the Linear issue
+
+**Skip this step entirely if no issue ID was found.**
 
 Use `save_comment` to add a **brief** comment. Keep it minimal - avoid verbose explanations.
 

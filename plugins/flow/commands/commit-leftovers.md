@@ -101,11 +101,11 @@ After all commits are created, push to remote:
 git push
 ```
 
-### Step 5: Get Issue Link
+### Step 5: Get Issue Link (Linear only)
 
-Extract the issue ID from the branch name (e.g., `alex/art-60-description` → `ART-60`).
+Extract the issue ID from the branch name (e.g., `alex/art-60-description` → `ART-60`). The branch must match the Linear `ABC-123` pattern.
 
-If an issue ID is found, use `get_issue` to fetch the issue URL for the output.
+If an issue ID is found, use `get_issue` to fetch the issue URL for the output. If no Linear issue ID is found, skip this step.
 
 ### Guidelines
 
