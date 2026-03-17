@@ -12,9 +12,9 @@ argument-hint: [--no-verify]
 - Current branch: !`git branch --show-current`
 - Recent commits: !`git log --oneline -10`
 - pnpm available: !`pnpm --version`
-- Has lint script: !`grep -c '"lint"' package.json`
-- Has check-types script: !`grep -c '"check-types"' package.json`
-- Has check-circular script: !`grep -c '"check-circular"' package.json`
+- Has lint script: !`grep -c lint package.json`
+- Has check-types script: !`grep -c check-types package.json`
+- Has check-circular script: !`grep -c check-circular package.json`
 
 ## Your task
 
