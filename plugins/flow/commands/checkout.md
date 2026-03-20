@@ -1,18 +1,18 @@
 ---
 disable-model-invocation: true
 description: Checkout a branch for a Linear issue or plain branch name
-argument-hint: [issue-id-or-branch-name] [--no-worktree]
+argument-hint: [issue-id-or-branch-name] [--worktree]
 allowed-tools: mcp__claude_ai_Linear__get_issue, mcp__claude_ai_Linear__save_issue, Bash(git worktree *), Bash(git push *), Bash(git -C *), Bash(git rev-parse *), Bash(git checkout *), Bash(basename *), Bash(cp *), Bash(test *), Bash(echo *), Bash(code *)
 ---
 
 # Checkout Branch
 
-Create a worktree and branch for a Linear issue or a plain branch name, enabling parallel development.
+Create a branch for a Linear issue or a plain branch name. Pass `--worktree` to create an isolated worktree for parallel development.
 
 ## Arguments
 
 - **Identifier**: `$1` - Either a Linear issue ID (e.g., "ABC-123") or a plain branch name (e.g., "my-feature", "fix/login-bug"). If not provided, infer from conversation context.
-- **Mode**: `$2` - Pass `--no-worktree` to create a regular branch instead of a worktree. Useful when you don't need an isolated devcontainer.
+- **Mode**: `$2` - Pass `--worktree` to create a worktree for isolated parallel development. Default is a regular branch checkout.
 
 ## Step 1: Determine Mode (Linear vs Plain Branch)
 
@@ -57,9 +57,9 @@ Continue to **Step 3: Check Mode**.
 
 ## Step 3: Check Mode
 
-If `$2` is `--no-worktree`, skip to **Step 3b: Branch-only checkout**.
+If `$2` is `--worktree`, continue to **Step 3a: Worktree checkout**.
 
-Otherwise, continue to **Step 3a: Worktree checkout**.
+Otherwise, skip to **Step 3b: Branch-only checkout**.
 
 ---
 
@@ -203,7 +203,7 @@ To start working, open a new terminal and run:
 Run /flow:commit when done to create draft PR.
 ```
 
-**If `--no-worktree` mode + Linear:**
+**If branch-only mode + Linear:**
 
 ```
 Branch: $BRANCH_NAME
@@ -212,7 +212,7 @@ Issue: <issue-identifier> - <issue-title> (In Progress)
 Run /flow:commit when done to create draft PR.
 ```
 
-**If `--no-worktree` mode + plain branch:**
+**If branch-only mode + plain branch:**
 
 ```
 Branch: $BRANCH_NAME

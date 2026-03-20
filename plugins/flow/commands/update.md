@@ -1,17 +1,24 @@
 ---
 disable-model-invocation: true
-description: Fetch the latest changes from main and merge them into the current branch
+description: Fetch the latest changes from staging (or main with --main) and merge them into the current branch
 allowed-tools: Bash(git fetch *), Bash(git merge *), Bash(git merge-base *), Bash(git status *), Bash(git branch *), Bash(git diff *), Bash(git rev-parse *)
+argument-hint: [--main]
 ---
 
-# Update Branch from Main
+# Update Branch from Upstream
 
-Fetch the latest changes from main and merge them into the current branch.
+Fetch the latest changes from the upstream branch and merge them into the current branch.
 
 ## Context
 
 - Current branch: !`git branch --show-current`
 - Current status: !`git status --short`
+- Arguments: `$ARGUMENTS`
+
+## Determine Source Branch
+
+- If arguments above is `--main`: source branch is `main`
+- If arguments above is empty: source branch is `staging`
 
 ## Step 1: Validate Current Branch
 
@@ -21,12 +28,12 @@ Check the current branch:
 git branch --show-current
 ```
 
-If on `main` or `master`:
+If on the source branch (e.g., on `staging` when updating from staging, or on `main` when using `--main`):
 
 - Output warning and stop:
-  > **Already on main branch.**
+  > **Already on the source branch.**
   >
-  > This command is for updating feature branches with the latest changes from main.
+  > This command is for updating feature branches with the latest changes from <source-branch>.
 
 ## Step 2: Check for Uncommitted Changes
 
@@ -50,7 +57,7 @@ If there are uncommitted changes:
 Fetch the latest changes:
 
 ```bash
-git fetch origin main
+git fetch origin <source-branch>
 ```
 
 If fetch fails (e.g., no remote, network error):
@@ -63,23 +70,23 @@ Check if the branch is already up to date:
 
 ```bash
 git rev-parse HEAD
-git rev-parse origin/main
-git merge-base HEAD origin/main
+git rev-parse origin/<source-branch>
+git merge-base HEAD origin/<source-branch>
 ```
 
-If `origin/main` is an ancestor of HEAD (merge-base equals origin/main):
+If `origin/<source-branch>` is an ancestor of HEAD (merge-base equals origin/<source-branch>):
 
 - Output and stop:
   > **Already up to date.**
   >
-  > Your branch already contains all changes from main.
+  > Your branch already contains all changes from <source-branch>.
 
-## Step 5: Merge origin/main
+## Step 5: Merge origin/<source-branch>
 
 Perform the merge:
 
 ```bash
-git merge origin/main --no-edit
+git merge origin/<source-branch> --no-edit
 ```
 
 ## Step 6: Report Result
@@ -89,7 +96,7 @@ git merge origin/main --no-edit
 ```
 Branch updated successfully.
 
-Merged origin/main into <branch-name>.
+Merged origin/<source-branch> into <branch-name>.
 ```
 
 **If merge has conflicts:**
